@@ -1,0 +1,33 @@
+diff --git a/Clients/ParaView/ParaViewMainWindow.cxx b/Clients/ParaView/ParaViewMainWindow.cxx
+index 0000000..0000000 100644
+--- a/Clients/ParaView/ParaViewMainWindow.cxx
++++ b/Clients/ParaView/ParaViewMainWindow.cxx
+@@ -1,3 +1,13 @@
++// 红创科技 - ParaView 白标化定制
++// 红创可视化平台 V1.0
++// 修改窗口标题栏显示为红创科技品牌
++
++@@ -42,3 +42,3 @@
++   // 原始标题: setWindowTitle("ParaView");
++-  setWindowTitle("ParaView");
+++  setWindowTitle("红创科技 - 三维可视化分析平台");
++
++@@ -68,3 +68,3 @@
++   // 原始关于信息
++-  this->setWindowTitle("ParaView " PARAVIEW_VERSION_FULL);
+++  this->setWindowTitle("红创科技 - 三维可视化分析平台 " PARAVIEW_VERSION_FULL);
+
+diff --git a/Clients/ParaView/Resources/splash.png b/Clients/ParaView/Resources/splash.png
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/Clients/ParaView/Resources/splash.png
+@@ -0,0 +1 @@
++Binary file: 红创科技启动画面 (替换原 ParaView splash)
+diff --git a/Clients/ParaView/Resources/icon.png b/Clients/ParaView/Resources/icon.png
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/Clients/ParaView/Resources/icon.png
+@@ -0,0 +1 @@
++Binary file: 红创科技应用图标 (替换原 ParaView 图标)

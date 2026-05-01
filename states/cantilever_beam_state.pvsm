@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  红创科技 - 三维可视化分析平台 V1.0
+  悬臂梁受力分析 - ParaView 状态文件
+
+  算例说明:
+    悬臂梁 (Cantilever Beam) 在自由端受集中力作用下的静力分析结果。
+    本状态文件加载 MOOSE 输出的 Exodus II (.e) 结果文件,
+    并配置位移云图、应力分布等后处理可视化视图。
+
+  用法:
+    hongchuang_post -state=states/cantilever_beam_state.pvsm
+-->
+<ParaView>
+  <ServerManagerState version="5.11.0">
+    <!-- ===== 视图配置 ===== -->
+    <Proxy group="views" type="RenderView" id="1"
+           servers="1">
+      <Property name="ViewSize" value="[1920, 1080]" />
+      <Property name="CenterOfRotation" value="[5.0, 1.0, 1.0]" />
+      <Property name="CameraPosition" value="[12.0, 6.0, 8.0]" />
+      <Property name="CameraViewUp" value="[0.0, 1.0, 0.0]" />
+      <Property name="CameraParallelScale" value="6.5" />
+      <Property name="Background" value="[0.95, 0.95, 0.98]" />
+      <Property name="Background2" value="[0.85, 0.85, 0.90]" />
+      <Property name="UseGradientBackground" value="1" />
+      <!-- 红创科技品牌色 (红色调) -->
+      <Property name="AnnotationColor" value="[0.8, 0.0, 0.0]" />
+      <Property name="CenterAxesVisibility" value="1" />
+      <Property name="OrientationAxesVisibility" value="1" />
+      <!-- 标题文字 -->
+      <Property name="Title" value="红创科技 - 悬臂梁受力分析" />
+      <Property name="TitleColor" value="[0.7, 0.0, 0.0]" />
+      <Property name="TitleFontSize" value="24" />
+    </Proxy>
+
+    <!-- ===== 算例数据读取器 ===== -->
+    <Proxy group="sources" type="ExodusIIReader" id="2"
+           servers="1">
+      <Property name="FileName" value="outputs/cantilever_beam.e" />
+      <Property name="HasModeShapes" value="0" />
+      <Property name="HasResultArrays" value="1" />
+      <Property name="PointArrayStatus">
+        <Element value="displacement" />
+        <Element value="von_mises_stress" />
+        <Element value="stress_xx" />
+        <Element value="stress_yy" />
+        <Element value="stress_xy" />
+      </Property>
+      <Property name="CellArrayStatus">
+        <Element value="von_mises_stress" />
+      </Property>
+    </Proxy>
+
+    <!-- ===== 位移云图 (warp by vector) ===== -->
+    <Proxy group="filters" type="WarpByVector" id="3"
+           servers="1">
+      <Property name="Input" value="2" />
+      <Property name="Vectors" value="displacement" />
+      <Property name="ScaleFactor" value="100.0" />
+      <Property name="UseScaleFactor" value="1" />
+    </Proxy>
+
+    <!-- ===== Von Mises 应力着色 ===== -->
+    <Proxy group="representations" type="UnstructuredGridRepresentation" id="4"
+           servers="1">
+      <Property name="Input" value="3" />
+      <Property name="Visibility" value="1" />
+      <Property name="Representation" value="Surface With Edges" />
+      <Property name="ColorArrayName" value="von_mises_stress" />
+      <Property name="ColorAttributeType" value="POINT" />
+      <!-- 红创科技配色方案: 蓝-白-红 -->
+      <Property name="LookupTable" value="5" />
+      <Property name="EdgeColor" value="[0.3, 0.3, 0.3]" />
+      <Property name="Opacity" value="0.95" />
+    </Proxy>
+
+    <!-- ===== 色标配置 ===== -->
+    <Proxy group="lookup_tables" type="PVLookupTable" id="5"
+           servers="1">
+      <Property name="RGBPoints">
+        <Element value="0.0" />
+        <Element value="0.0" />     <!-- R -->
+        <Element value="0.2" />     <!-- G -->
+        <Element value="0.8" />     <!-- B -->
+        <Element value="0.5" />
+        <Element value="1.0" />     <!-- R -->
+        <Element value="1.0" />     <!-- G -->
+        <Element value="1.0" />     <!-- B -->
+        <Element value="1.0" />
+        <Element value="0.8" />     <!-- R -->
+        <Element value="0.0" />     <!-- G -->
+        <Element value="0.0" />     <!-- B -->
+      </Property>
+      <Property name="VectorMode" value="Magnitude" />
+      <Property name="ColorSpace" value="Diverging" />
+      <Property name="Title" value="Von Mises 应力 (MPa)" />
+      <Property name="TitleColor" value="[0.0, 0.0, 0.0]" />
+      <Property name="TitleFontSize" value="16" />
+      <Property name="LabelColor" value="[0.0, 0.0, 0.0]" />
+      <Property name="LabelFontSize" value="12" />
+      <Property name="AutomaticRescaleRangeMode" value="Grow and update on 'Apply'" />
+      <Property name="ScalarRangeInitialized" value="1" />
+    </Proxy>
+
+    <!-- ===== 变形前轮廓 (半透明参考) ===== -->
+    <Proxy group="representations" type="UnstructuredGridRepresentation" id="6"
+           servers="1">
+      <Property name="Input" value="2" />
+      <Property name="Visibility" value="1" />
+      <Property name="Representation" value="Wireframe" />
+      <Property name="ColorArrayName" value="" />
+      <Property name="DiffuseColor" value="[0.5, 0.5, 0.5]" />
+      <Property name="Opacity" value="0.15" />
+    </Proxy>
+
+    <!-- ===== 红创科技文字标注 ===== -->
+    <Proxy group="sources" type="Text" id="7"
+           servers="1">
+      <Property name="Text" value="红创科技 - 多物理场仿真引擎" />
+      <Property name="FontFamily" value="Arial" />
+      <Property name="FontSize" value="20" />
+      <Property name="Bold" value="1" />
+      <Property name="Italic" value="0" />
+      <Property name="Shadow" value="0" />
+      <Property name="Justification" value="Left" />
+      <Property name="Color" value="[0.7, 0.0, 0.0]" />
+      <Property name="Opacity" value="1.0" />
+      <Property name="Position" value="[0.02, 0.94]" />
+    </Proxy>
+
+    <!-- ===== 算例信息标注 ===== -->
+    <Proxy group="sources" type="Text" id="8"
+           servers="1">
+      <Property name="Text" value="悬臂梁受力分析 | 梁长: 10m | 截面: 1x1m | 载荷: 10kN @ 自由端" />
+      <Property name="FontFamily" value="Arial" />
+      <Property name="FontSize" value="12" />
+      <Property name="Color" value="[0.3, 0.3, 0.3]" />
+      <Property name="Opacity" value="0.9" />
+      <Property name="Position" value="[0.02, 0.02]" />
+    </Proxy>
+
+    <!-- ===== 时间信息 ===== -->
+    <Proxy group="representations" type="TextSourceRepresentation" id="9"
+           servers="1">
+      <Property name="Input" value="7" />
+      <Property name="Visibility" value="1" />
+    </Proxy>
+    <Proxy group="representations" type="TextSourceRepresentation" id="10"
+           servers="1">
+      <Property name="Input" value="8" />
+      <Property name="Visibility" value="1" />
+    </Proxy>
+
+  </ServerManagerState>
+</ParaView>
