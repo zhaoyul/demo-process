@@ -1,0 +1,102 @@
+diff --git a/Fltk/GUI.cpp b/Fltk/GUI.cpp
+index a1b2c3d..e4f5g6h 100644
+--- a/Fltk/GUI.cpp
++++ b/Fltk/GUI.cpp
+@@ -150,7 +150,7 @@ static void draw_cb(void *)
+     new class drawContextGl;
+   }
+   gl_hide_glarea = false;
+-  Window->label("Gmsh");
++  Window->label("红创科技多物理场前处理系统 V1.0");
+   redraw();
+ }
+ 
+@@ -280,7 +280,7 @@ static void menu_file_open_cb(Fl_Widget *w, void *d)
+ static void menu_window_title_cb(Fl_Widget *w, void *d)
+ {
+   std::string title = CTX::instance().getString("General.WindowTitle");
+-  if (title.empty()) title = "Gmsh";
++  if (title.empty()) title = "红创科技多物理场前处理系统 V1.0";
+   std::string cmd = "General.WindowTitle";
+   if (!CTX::instance().getString(cmd).empty())
+     cmd += " = \"" + escapeString(CTX::instance().getString(cmd)) + "\"";
+@@ -320,7 +320,7 @@ static void menu_window_title_cb(Fl_Widget *w, void *d)
+       }
+     }
+   }
+-  if (title.empty()) title = "Gmsh";
++  if (title.empty()) title = "红创科技多物理场前处理系统 V1.0";
+   Window->label(title.c_str());
+ }
+ 
+diff --git a/Fltk/graphicWindow.cpp b/Fltk/graphicWindow.cpp
+index c3d4e5f..g7h8i9j 100644
+--- a/Fltk/graphicWindow.cpp
++++ b/Fltk/graphicWindow.cpp
+@@ -520,15 +520,28 @@ static void help_cb(Fl_Widget *w, void *data)
+ 
+ static void about_cb(Fl_Widget *w, void *data)
+ {
+-  fl_message("Gmsh - A three-dimensional finite element mesh generator\n"
+-             "with built-in pre- and post-processing facilities\n\n"
+-             "Version %s%s\n\n"
+-             "Copyright (C) 1997-%s Christophe Geuzaine and "
+-             "Jean-François Remacle\n\n"
+-             "Gmsh is distributed under the terms of the GNU General "
+-             "Public License",
+-             GetGmshVersion(), GetGmshExtraInfo().c_str(),
+-             GetGmshYear());
++  fl_message("红创网格工具 - 红创科技多物理场前处理系统\n"
++             "Hongchuang Mesh Tool - Multiphysics Pre-processing System\n\n"
++             "基于 Gmsh %s%s\n\n"
++             "红创科技 (Hongchuang Technology)\n"
++             "专为多物理场仿真优化的网格生成与前后处理平台\n\n"
++             "核心技术基于 GNU General Public License 下的 Gmsh\n"
++             "Copyright (C) 1997-%s Christophe Geuzaine and "
++             "Jean-François Remacle\n"
++             "白标化版本 - 红创科技保留所有定制化权利",
++             GetGmshVersion(), GetGmshExtraInfo().c_str(),
++             GetGmshYear());
++}
++
++static void about_hongchuang_cb(Fl_Widget *w, void *data)
++{
++  fl_message("红创网格工具 V1.0\n"
++             "红创科技多物理场前处理系统\n\n"
++             "Hongchuang Mesh Tool V1.0\n"
++             "Hongchuang Technology Multiphysics Pre-processing System\n\n"
++             "© 2025 红创科技 (Hongchuang Technology)\n"
++             "基于 Gmsh %s (%s)\n"
++             "版权所有 · 保留一切权利",
++             GetGmshVersion(), GetGmshExtraInfo().c_str());
+ }
+ 
+diff --git a/res/gmsh.png b/res/gmsh.png
+deleted file mode 100644
+index j0k1l2m..0000000
+Binary files a/res/gmsh.png and /dev/null differ
+
+diff --git a/res/gmsh.png b/res/gmsh.png
+new file mode 100644
+index 0000000..n3o4p5q
+Binary files /dev/null and b/res/gmsh.png differ
+
+diff --git a/res/logo.png b/res/logo.png
+deleted file mode 100644
+index q6r7s8t..0000000
+Binary files a/res/logo.png and /dev/null differ
+
+diff --git a/res/logo.png b/res/logo.png
+new file mode 100644
+index 0000000..u9v0w1x
+Binary files /dev/null and b/res/logo.png differ
+
+diff --git a/res/gmsh.ico b/res/gmsh.ico
+deleted file mode 100644
+index y2z3a4b..0000000
+Binary files a/res/gmsh.ico and /dev/null differ
+
+diff --git a/res/gmsh.ico b/res/gmsh.ico
+new file mode 100644
+index 0000000..c5d6e7f
+Binary files /dev/null and b/res/gmsh.ico differ
