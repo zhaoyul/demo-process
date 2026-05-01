@@ -1,0 +1,33 @@
+{
+  "platform": {
+    "name": "红创科技多物理场仿真平台",
+    "name_en": "Hongchuang Multiphysics Simulation Platform",
+    "version": "1.0.0",
+    "description": "统一的多物理场前后处理与求解平台"
+  },
+  "tools": {
+    "mesh": {
+      "binary": "bin/hongchuang_mesh",
+      "description": "红创网格工具 (基于 Gmsh)"
+    },
+    "solver": {
+      "binary": "bin/hongchuang-opt",
+      "description": "红创求解器 (基于 MOOSE)"
+    },
+    "post": {
+      "binary": "bin/hongchuang_post",
+      "description": "红创后处理 (基于 ParaView)"
+    }
+  },
+  "directories": {
+    "inputs": "inputs",
+    "outputs": "outputs",
+    "states": "states",
+    "source": "src",
+    "binaries": "bin"
+  },
+  "mpi": {
+    "default_cores": 8,
+    "implementation": "mpich"
+  }
+}

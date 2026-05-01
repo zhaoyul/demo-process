@@ -1,0 +1,49 @@
+# Build artifacts
+bin/hongchuang_mesh
+bin/hongchuang-opt
+bin/hongchuang_post
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Compiled output
+*.o
+*.a
+*.so
+*.dylib
+
+# Simulation outputs (large binary)
+outputs/*.msh
+outputs/*.vtk
+outputs/*.e
+outputs/*.xda
+outputs/*.xdr
+
+# ParaView state snapshots
+states/*.pvsm
+states/*.pvb
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Beads (local runtime)
+.beads/
+.pi/
+.runtime/
+
+# Conda / mamba environments
+mambaforge/
+miniforge3/
