@@ -44,6 +44,9 @@ Thumbs.db
 .pi/
 .runtime/
 
+# Gas Town
+CLAUDE.md
+
 # Conda / mamba environments
 mambaforge/
 miniforge3/
