@@ -1,140 +1,107 @@
 # ╔═══════════════════════════════════════════════════════════╗
 # ║  红创科技多物理场仿真平台                                  ║
 # ║  算例: 悬臂梁静力学分析                                    ║
-# ║  求解输入: MOOSE TensorMechanics                          ║
+# ║  求解器: MOOSE Solid Mechanics (solid_mechanics-opt)      ║
 # ╚═══════════════════════════════════════════════════════════╝
 #
-# 物理场景:
-#   矩形截面钢梁 (L=1.0m, W=0.1m, H=0.2m)
-#   一端固定 (x=0)，自由端顶面 (z=H) 施加向下载荷
-#   线弹性各向同性材料，小变形假设
-#
-# 对应 .geo 文件: inputs/cantilever_beam.geo
-# 网格文件:       outputs/cantilever_beam.msh
+# 理论解: δ_max = PL³/(3EI)
+#   P = 10 kPa × 0.1×0.2 = 200 N, E = 200 GPa
+#   I = bh³/12 = 0.1×0.2³/12 = 6.667e-5 m⁴
+#   δ_max = 200 × 1³ / (3 × 2e11 × 6.667e-5) = 5.0e-6 m
 
-# ── 网格 ──────────────────────────────────────────────────
 [Mesh]
   type = FileMesh
-  file = outputs/cantilever_beam.msh
+  file = ../outputs/cantilever_beam.msh
 []
 
-# ── 变量 ──────────────────────────────────────────────────
 [Variables]
   [disp_x]
-    order = SECOND
+    order = FIRST
     family = LAGRANGE
   []
   [disp_y]
-    order = SECOND
+    order = FIRST
     family = LAGRANGE
   []
   [disp_z]
-    order = SECOND
+    order = FIRST
     family = LAGRANGE
   []
 []
 
-# ── 内核 (Kernels) ────────────────────────────────────────
 [Kernels]
-  # 应力散度项 (平衡方程)
   [TensorMechanics]
     displacements = 'disp_x disp_y disp_z'
     use_displaced_mesh = false
   []
 []
 
-# ── 边界条件 ──────────────────────────────────────────────
 [BCs]
-  # 固定端 (x=0): 全约束
-  [fixed_end]
+  [fixed_x]
     type = DirichletBC
     variable = disp_x
     boundary = fixed_end
     value = 0.0
   []
-  [fixed_end_y]
+  [fixed_y]
     type = DirichletBC
     variable = disp_y
     boundary = fixed_end
     value = 0.0
   []
-  [fixed_end_z]
+  [fixed_z]
     type = DirichletBC
     variable = disp_z
     boundary = fixed_end
     value = 0.0
   []
-
-  # 集中力施加 (顶面): 沿 -z 方向
   [load]
     type = NeumannBC
     variable = disp_z
     boundary = load_surface
-    value = -1.0e4    # 10 kN/m² 面压力
+    value = -1.0e4
   []
 []
 
-# ── 材料属性 ──────────────────────────────────────────────
 [Materials]
-  # 结构钢 (Q235 等效)
-  [steel]
+  [elasticity]
     type = ComputeIsotropicElasticityTensor
-    block = beam
-    youngs_modulus = 2.0e11   # 200 GPa
+    youngs_modulus = 2.0e11
     poissons_ratio = 0.30
+    block = beam
   []
-
-  # 小应变假设
   [strain]
     type = ComputeSmallStrain
     block = beam
     displacements = 'disp_x disp_y disp_z'
   []
-
-  # 线弹性应力
   [stress]
     type = ComputeLinearElasticStress
     block = beam
   []
 []
 
-# ── 求解器 ────────────────────────────────────────────────
 [Executioner]
   type = Steady
-
-  solve_type = 'PJFNK'     # Preconditioned Jacobian-Free Newton-Krylov
+  solve_type = 'PJFNK'
   petsc_options_iname = '-pc_type -pc_hypre_type'
   petsc_options_value = 'hypre boomeramg'
-
   nl_rel_tol = 1.0e-8
   nl_abs_tol = 1.0e-6
   nl_max_its = 20
 []
 
-# ── 输出 ──────────────────────────────────────────────────
 [Outputs]
-  exodus = true    # ExodusII 格式 (ParaView 可读)
-  csv = true       # CSV 格式 (Python/Pandas 可读)
+  file_base = ../outputs/cantilever_beam
+  exodus = true
+  csv = true
   console = true
-  [console]
-    type = Console
-    perf_log = true
-    max_rows = 15
-  []
 []
 
-# ── 后处理器 (可选指标) ───────────────────────────────────
 [Postprocessors]
-  # 自由端最大位移
   [tip_disp_z]
     type = PointValue
     variable = disp_z
     point = '1.0 0.05 0.2'
-  []
-  # 固定端 von Mises 应力
-  [fixed_vm_stress]
-    type = ElementAverageValue
-    variable = vonmises_stress
-    block = beam
   []
 []
