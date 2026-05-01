@@ -1,0 +1,126 @@
+##################################################################
+#                                                                 #
+#    Hongchuang Multi-Physics Engine — CMake Build Configuration   #
+#    红创科技 多物理场仿真引擎 — CMake 编译配置                     #
+#                                                                 #
+##################################################################
+
+# ─── Project Identity ──────────────────────────────────────────
+# This CMake file configures the Hongchuang custom MOOSE application.
+# It is designed to be included from the parent MOOSE build system
+# or used standalone with a properly configured MOOSE environment.
+#
+# Usage (standalone):
+#   mkdir build && cd build
+#   cmake -DMOOSE_DIR=/path/to/moose ..
+#   make -j$(nproc)
+#
+# Usage (with MOOSE wrapper):
+#   The moose_wrapper script auto-generates a top-level CMakeLists.txt
+#   that includes this file.
+
+cmake_minimum_required(VERSION 3.15)
+
+# ─── Project Definition ────────────────────────────────────────
+project(HongchuangApp
+  VERSION 1.0.0
+  DESCRIPTION "红创科技多物理场仿真引擎 — Hongchuang Multi-Physics Engine"
+  LANGUAGES CXX
+)
+
+# ─── C++ Standard ──────────────────────────────────────────────
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# ─── MOOSE Integration ─────────────────────────────────────────
+# Expect MOOSE_DIR to point to the MOOSE framework root
+if(NOT DEFINED MOOSE_DIR)
+  message(FATAL_ERROR
+    "MOOSE_DIR is not set. Please specify the MOOSE framework path:\n"
+    "  cmake -DMOOSE_DIR=/path/to/moose ..")
+endif()
+
+# ─── Application Source Files ──────────────────────────────────
+set(HONGCHUANG_SRCS
+  # Main application
+  src/HongchuangApp.C
+
+  # Core solver module
+  src/core/SolverCore.C
+)
+
+# ─── Application Headers ───────────────────────────────────────
+set(HONGCHUANG_HEADERS
+  src/HongchuangApp.h
+  src/core/SolverCore.h
+)
+
+# ─── Include Directories ───────────────────────────────────────
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+)
+
+# ─── Library: Hongchuang Core ──────────────────────────────────
+add_library(hongchuang_core STATIC
+  ${HONGCHUANG_SRCS}
+  ${HONGCHUANG_HEADERS}
+)
+
+target_link_libraries(hongchuang_core
+  PUBLIC
+    ${MOOSE_LIBRARIES}
+)
+
+target_include_directories(hongchuang_core
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${MOOSE_DIR}/framework/include
+    ${MOOSE_DIR}/modules/include
+)
+
+# ─── Executable: hongchuang-opt ────────────────────────────────
+add_executable(hongchuang-opt
+  ${HONGCHUANG_SRCS}
+)
+
+target_link_libraries(hongchuang-opt
+  PRIVATE
+    hongchuang_core
+    ${MOOSE_LIBRARIES}
+)
+
+# ─── Compiler Flags ────────────────────────────────────────────
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(hongchuang_core PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wno-unused-parameter
+  )
+endif()
+
+# ─── Install Rules ─────────────────────────────────────────────
+install(TARGETS hongchuang-opt
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS hongchuang_core
+  ARCHIVE DESTINATION lib
+)
+
+install(FILES ${HONGCHUANG_HEADERS}
+  DESTINATION include/hongchuang
+)
+
+# ─── Build Summary ─────────────────────────────────────────────
+message(STATUS "══════════════════════════════════════════════════")
+message(STATUS "  红创科技 多物理场仿真引擎 v${PROJECT_VERSION}")
+message(STATUS "  Hongchuang Multi-Physics Engine")
+message(STATUS "══════════════════════════════════════════════════")
+message(STATUS "  C++ Standard:   ${CMAKE_CXX_STANDARD}")
+message(STATUS "  MOOSE Dir:      ${MOOSE_DIR}")
+message(STATUS "  Build Type:     ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Source Files:   ${HONGCHUANG_SRCS}")
+message(STATUS "══════════════════════════════════════════════════")
