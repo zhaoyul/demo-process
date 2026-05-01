@@ -1,0 +1,43 @@
+#!/bin/bash
+# ============================================================
+# 红创科技多物理场仿真平台
+# 红创求解器 V1.0
+# 基于 MOOSE Solid Mechanics 引擎
+# Copyright (c) 2026 红创科技 (Hongchuang Tech)
+# ============================================================
+
+RED='\033[91m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+cat << "BANNER"
+
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║   _   _                       _                               ║
+║  | | | | ___  _ __   __ _ ___| |__  _   _  __ _ _ __   ___  ║
+║  | |_| |/ _ \| '_ \ / _` / __| '_ \| | | |/ _` | '_ \ / _ \ ║
+║  |  _  | (_) | | | | (_| \__ \ | | | |_| | (_| | | | |  __/ ║
+║  |_| |_|\___/|_| |_|\__, |___/_| |_|\__,_|\__,_|_| |_|\___| ║
+║                     |___/                                     ║
+║                                                              ║
+║    红创科技多物理场仿真引擎 (核心模块) V1.0                     ║
+║    基于 MOOSE 多物理场面向对象仿真环境                         ║
+║    © 2026 红创科技 (Hongchuang Tech)                          ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+BANNER
+
+echo ""
+
+# Delegate to the MOOSE Solid Mechanics engine
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENGINE="$(dirname "$SCRIPT_DIR")/build/moose/modules/solid_mechanics/solid_mechanics-opt"
+
+if [ ! -x "$ENGINE" ]; then
+    echo -e "${RED}[错误]${RESET} MOOSE 引擎未编译: $ENGINE"
+    echo "请先执行: cd build/moose/modules/solid_mechanics && METHOD=opt make -j8"
+    exit 1
+fi
+
+exec "$ENGINE" "$@"
