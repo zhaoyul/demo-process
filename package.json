@@ -1,0 +1,28 @@
+{
+  "name": "rig",
+  "version": "1.0.0",
+  "description": "端到端多物理场仿真平台，基于 Gmsh / MOOSE / ParaView 进行深度白标化（打上\"红创科技\"标签）， 通过 Python 中枢 CLI 统一封装前处理、求解、后处理三大模块。",
+  "main": "generate_ppt.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhaoyul/demo-process.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zhaoyul/demo-process/issues"
+  },
+  "homepage": "https://github.com/zhaoyul/demo-process#readme",
+  "dependencies": {
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-icons": "^5.6.0",
+    "sharp": "^0.34.5"
+  }
+}
