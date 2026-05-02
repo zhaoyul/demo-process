@@ -37,7 +37,7 @@ for e in conn:
 ext_faces = [f for f,c in fc.items() if c == 1]
 print(f"External faces: {len(ext_faces)}")
 
-WARP_SCALE = 1000
+WARP_SCALE = 2000
 
 # Three fields to cycle through
 fields = [
@@ -80,12 +80,19 @@ for i in range(n):
         ax.add_collection3d(tri)
     
     # Slow camera orbit
-    angle = i * 1.2 / n * 360
+    angle = i * 0.4 / n * 360
     ax.view_init(elev=30 + 5*np.sin(i*np.pi/45), azim=-60+angle)
     ax.set_xlim(-0.05, 1.05); ax.set_ylim(-0.05, 0.15); ax.set_zlim(-0.02, 0.25)
     ax.tick_params(colors='#888')
-    ax.set_title(f'Multiphysics Coupling: {label}  |  range=[{values.min():.3f}, {values.max():.3f}] {unit}',
+    ax.set_title(f'Multiphysics: {label}  |  [{values.min():.3f}, {values.max():.3f}] {unit}',
                  color='white', fontsize=14, pad=10)
+    
+    ax.text2D(0.02, 0.95, f'{label}: {values.min():.3f} ~ {values.max():.3f} {unit}', transform=ax.transAxes,
+              color='#D4AF37', fontsize=20, weight='bold')
+    ax.text2D(0.02, 0.88, f'Fields: Temperature | Displacement | Damage', transform=ax.transAxes,
+              color='#888888', fontsize=11)
+    ax.text2D(0.02, 0.83, f'Direct coupling (single solver, PJFNK)', transform=ax.transAxes,
+              color='#888888', fontsize=10)
     
     fig.savefig(str(d / f"f{i:04d}.png"), dpi=100, facecolor='#1A1A2E')
     if i % 15 == 0:

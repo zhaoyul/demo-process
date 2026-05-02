@@ -80,7 +80,7 @@ for i in range(60):
     ax.set_facecolor('#1A1A2E')
     
     # Camera orbit
-    angle = i * 1.0 / 60 * 360  # 3 full rotations
+    angle = i * 0.33 / 60 * 360  # 3 full rotations
     elev = 35 + 10 * np.sin(i * np.pi / 30)
     azim = angle % 360
     
@@ -96,6 +96,13 @@ for i in range(60):
     ax.view_init(elev=elev, azim=azim)
     ax.set_title(f'Electrostatic Potential: Steel (1e7 S/m) + Concrete (1e-2 S/m)',
                  color='white', fontsize=14, pad=10)
+    
+    ax.text2D(0.02, 0.95, 'Steel: V ≈ 1.0V (conductor)', transform=ax.transAxes,
+              color='#FF4444', fontsize=16, weight='bold')
+    ax.text2D(0.02, 0.88, 'Concrete: V: 1.0V → 0V (gradient)', transform=ax.transAxes,
+              color='#4488FF', fontsize=16, weight='bold')
+    ax.text2D(0.02, 0.81, f'Potential range: [{potential.min():.2f}, {potential.max():.2f}] V', transform=ax.transAxes,
+              color='white', fontsize=11)
     
     fig.savefig(str(d / f"f{i:04d}.png"), dpi=100, facecolor='#1A1A2E')
     if i % 20 == 0:

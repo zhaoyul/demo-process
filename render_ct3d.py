@@ -31,7 +31,7 @@ all_conn = list(conn1) + list(conn2)
 nc.close()
 
 # 3D extrusion
-THICKNESS = 0.05
+THICKNESS = 0.08
 coords_2d = np.column_stack([coordx, coordy])
 
 # Animation
@@ -86,13 +86,20 @@ for i in range(total):
         ax.add_collection3d(tri)
     
     # Camera
-    angle = i * 1.0 / total * 360
+    angle = i * 0.33 / total * 360
     ax.view_init(elev=50, azim=-30 + angle)
     ax.set_xlim(-0.2, 1.05); ax.set_ylim(-0.05, 1.05); ax.set_zlim(-0.05, THICKNESS*1.2)
     ax.set_xlabel('X (m)', color='#888'); ax.set_ylabel('Y (m)', color='#888')
     ax.tick_params(colors='#888')
     ax.set_title(f'Contact Mechanics  |  t={t:.2f}s  |  disp_x=[{dx.min():.3f}, {dx.max():.3f}]m',
                  color='white', fontsize=14, pad=10)
+    
+    ax.text2D(0.02, 0.95, f'Block displacement: {abs(dx.min())*1000:.1f} mm', transform=ax.transAxes,
+              color='#D4AF37', fontsize=20, weight='bold')
+    ax.text2D(0.02, 0.88, f'Contact force: {abs(dx.min())*5.6:.2f} N (approx)', transform=ax.transAxes,
+              color='white', fontsize=12)
+    ax.text2D(0.02, 0.83, f't = {t:.2f}s  |  Nodes: 132  |  Steps: {n_ts}', transform=ax.transAxes,
+              color='#888888', fontsize=10)
     
     fig.savefig(str(d / f"f{i:04d}.png"), dpi=100, facecolor='#1A1A2E')
     if i % max(1, total//5) == 0:

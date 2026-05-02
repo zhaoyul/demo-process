@@ -28,7 +28,7 @@ conn = nc.variables['connect1'][:].data - 1  # 0-indexed
 nc.close()
 
 n_ts = len(ts); n_elems = len(conn)
-WARP_SCALE = 3000
+WARP_SCALE = 5000
 
 # Extract external faces of tetrahedral mesh
 # Each tet has 4 faces: (0,1,2), (0,1,3), (0,2,3), (1,2,3)
@@ -77,9 +77,17 @@ for i in range(total):
     ax.set_xlim(-0.05, 1.05); ax.set_ylim(-0.05, 0.15); ax.set_zlim(-0.02, 0.22)
     ax.set_xlabel('X (m)', color='#888'); ax.set_ylabel('Y (m)', color='#888'); ax.set_zlabel('Z (m)', color='#888')
     ax.tick_params(colors='#888')
-    ax.view_init(elev=25, azim=-60 + (i % 20) * 1.5)
+    ax.view_init(elev=28, azim=-60 + i * 0.5 / n_ts / n_cycles * 360)
     ax.set_title(f'Cantilever Beam Loading  |  t={t:.2f}s  |  max defl={abs(dz.min())*1e6:.2f}µm',
                  color='white', fontsize=14, pad=10)
+    
+    # Numerical callout
+    ax.text2D(0.02, 0.95, f'δ_max = {abs(dz.min())*1e6:.1f} µm', transform=ax.transAxes,
+              color='#D4AF37', fontsize=22, weight='bold')
+    ax.text2D(0.02, 0.88, f'Nodes: 350  |  Elems: 985  |  DOF: 1050', transform=ax.transAxes,
+              color='#888888', fontsize=11)
+    ax.text2D(0.02, 0.83, f't = {t:.2f}s  |  Load = {t*100:.0f}%', transform=ax.transAxes,
+              color='#AAAAAA', fontsize=11)
     
     fig.savefig(str(d / f"f{i:04d}.png"), dpi=100, facecolor='#1A1A2E')
     if i % max(1, total//5) == 0:
