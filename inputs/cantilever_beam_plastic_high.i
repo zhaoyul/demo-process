@@ -52,7 +52,7 @@
     type = NeumannBC
     variable = disp_z
     boundary = load_surface
-    value = -5.0e5
+    value = -5.0e6
   []
 []
 
@@ -91,7 +91,7 @@
 []
 
 [Outputs]
-  file_base = outputs/cantilever_beam_plastic
+  file_base = outputs/cantilever_beam_plastic_high
   exodus = true
   csv = true
 []
