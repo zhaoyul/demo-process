@@ -61,19 +61,24 @@ for i in range(n):
     field_idx = i // 30
     label, values, cmap, unit, warp_scale = fields[field_idx]
     
+    # Animate field build-up within each segment
+    frame_in_segment = i % 30
+    progress = min(frame_in_segment / 25, 1.0)  # ramp over 25/30 frames
+    scaled_values = values * progress
+    
     # Warp if needed
     wc = coords.copy()
     if warp_scale:
-        wc[:, 2] += values * warp_scale
+        wc[:, 2] += scaled_values * warp_scale
     
-    # Scale values for colormap (avoid division by zero)
+    # Scale values for colormap
     vrange = values.max() - values.min()
     vnorm = vrange if vrange > 1e-10 else 1.0
     
     for face in ext_faces:
         nidx = list(face)
-        v = values[nidx].mean()
-        color = cmap((v - values.min()) / vnorm)
+        v = scaled_values[nidx].mean()
+        color = cmap((v - scaled_values.min()) / max(vnorm * progress, 1e-10))
         poly = [wc[n] for n in nidx]
         tri = Poly3DCollection([poly], alpha=0.85, facecolor=color,
                                edgecolor='#333333', linewidth=0.15)
@@ -84,10 +89,10 @@ for i in range(n):
     ax.view_init(elev=30 + 5*np.sin(i*np.pi/45), azim=-60+angle)
     ax.set_xlim(-0.05, 1.05); ax.set_ylim(-0.05, 0.15); ax.set_zlim(-0.02, 0.25)
     ax.tick_params(colors='#888')
-    ax.set_title(f'Multiphysics: {label}  |  [{values.min():.3f}, {values.max():.3f}] {unit}',
+    ax.set_title(f'Multiphysics: {label}  |  [{scaled_values.min():.3f}, {scaled_values.max():.3f}] {unit}',
                  color='white', fontsize=14, pad=10)
     
-    ax.text2D(0.02, 0.95, f'{label}: {values.min():.3f} ~ {values.max():.3f} {unit}', transform=ax.transAxes,
+    ax.text2D(0.02, 0.95, f'{label}: {scaled_values.max():.3f} {unit}  ({progress*100:.0f}%)', transform=ax.transAxes,
               color='#D4AF37', fontsize=20, weight='bold')
     ax.text2D(0.02, 0.88, f'Fields: Temperature | Displacement | Damage', transform=ax.transAxes,
               color='#888888', fontsize=11)

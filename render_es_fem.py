@@ -80,12 +80,15 @@ for i in range(60):
     ax.set_facecolor('#1A1A2E')
     
     # Camera orbit
-    angle = i * 0.33 / 60 * 360  # 3 full rotations
+    angle = i * 0.33 / 60 * 360  # 0.33 rotations
     elev = 35 + 10 * np.sin(i * np.pi / 30)
     azim = angle % 360
     
-    for face_pts, val in all_faces:
-        color = plt.cm.jet(val)
+    # Animate field build-up: 0 → final over 40 frames
+    progress = min(i / 40, 1.0)
+    
+    for face_pts, val_raw in all_faces:
+        color = plt.cm.jet(val_raw * progress)
         tri = Poly3DCollection([face_pts], alpha=0.85, facecolor=color,
                                edgecolor='#333333', linewidth=0.15)
         ax.add_collection3d(tri)
@@ -101,8 +104,8 @@ for i in range(60):
               color='#FF4444', fontsize=16, weight='bold')
     ax.text2D(0.02, 0.88, 'Concrete: V: 1.0V → 0V (gradient)', transform=ax.transAxes,
               color='#4488FF', fontsize=16, weight='bold')
-    ax.text2D(0.02, 0.81, f'Potential range: [{potential.min():.2f}, {potential.max():.2f}] V', transform=ax.transAxes,
-              color='white', fontsize=11)
+    ax.text2D(0.02, 0.81, f'V_max = {potential.max()*progress:.2f} V  |  Progress: {progress*100:.0f}%', transform=ax.transAxes,
+              color='white', fontsize=12, weight='bold')
     
     fig.savefig(str(d / f"f{i:04d}.png"), dpi=100, facecolor='#1A1A2E')
     if i % 20 == 0:
