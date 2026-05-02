@@ -80,7 +80,7 @@ for i in range(60):
     ax.set_facecolor('#1A1A2E')
     
     # Camera orbit
-    angle = i * 3.0 / 60 * 360  # 3 full rotations
+    angle = i * 1.0 / 60 * 360  # 3 full rotations
     elev = 35 + 10 * np.sin(i * np.pi / 30)
     azim = angle % 360
     
