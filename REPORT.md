@@ -47,7 +47,7 @@ I = bh³/12 = 0.1 × 0.2³ / 12 = 6.667 × 10⁻⁵ m⁴
 | 类别 | 路径 | 现场画面/动作 | 关键内容 | 作用 |
 |------|------|--------------|----------|------|
 | 演示脚本 | `demo.sh` | 主持人执行 `./demo.sh` | 分阶段暂停、标题横幅、总结信息 | 串联整场 demo 节奏 |
-| 调度入口 | `hongchuang_cli.py` | 脚本内部调用 `mesh/solve/post` | 统一封装前处理、求解、后处理 | 保证演示命令一致 |
+| 调度入口 | `hongchuang_cli.py` | 脚本内部调用 `mesh/solve/post` | 统一封装前处理、求解、后处理 | 保持演示命令一致 |
 | 几何输入 | `inputs/cantilever_beam.geo` | “第一步：前处理” | 8 个顶点、12 条边、1 个体；`fixed_end`/`load_surface` 物理分组 | 定义悬臂梁几何与边界命名 |
 | 求解输入 | `inputs/cantilever_beam.i` | “第二步：求解器” | `FileMesh` 读取 `outputs/cantilever_beam.msh`；3 个位移变量；顶面压力 `-1.0e4` Pa；钢材 `E=2.0e11`, `ν=0.30` | 定义有限元方程、材料和输出 |
 | 可视化状态 | `states/cantilever_beam_state.pvsm` | “第三步：后处理” | 读取 Exodus 结果；Warp By Vector；Von Mises 着色 | 保证视频中的显示效果可复现 |
@@ -120,7 +120,7 @@ time,tip_disp_z
 |----------|----------|----------|
 | 变形后的梁体 | `cantilever_beam_out.e` 位移场 | 说明结构整体向下弯曲 |
 | 颜色分布 | Von Mises 应力 | 说明危险区域集中在固支端附近 |
-| 放大变形 | `Warp By Vector` | 说明画面为展示效果, 实际位移量级为微米级 |
+| 放大变形 | `Warp By Vector` | 说明画面为展示效果, 实际位移约为 8 微米量级 |
 | 数值对照 | `cantilever_beam_out.csv` | 说明结果可追溯, 不只是“看图” |
 
 ## 五、仿真结果
