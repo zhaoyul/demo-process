@@ -110,7 +110,7 @@ time,tip_disp_z
 说明:
 
 - `time=0` 为初始状态, 自由端位移为 0。
-- `time=1` 为稳态求解输出时刻, 对外汇报可按 4 位有效数字写为 `tip_disp_z ≈ -8.444 × 10⁻⁶ m`（由原始值 `-8.4442237892724e-06` 四舍五入）。
+- `time=1` 为稳态求解输出时刻, 对外汇报可按 4 位有效数字写为 `tip_disp_z ≈ -8.444 × 10⁻⁶ m`；CSV 中仍保留原始值 `-8.4442237892724e-06` 以便追溯。
 - 负号表示自由端沿 `-z` 方向下挠, 与顶面向下压力边界条件一致。
 - 该值可作为视频口播中的“结果数字”, 与画面中的变形云图相互印证。
 
@@ -183,15 +183,15 @@ ParaView 打开 `cantilever_beam_fine.e` 可查看：
 # 1. 激活环境
 conda activate moose
 
-# 1.1 现场演示脚本
+# 2. 现场演示脚本
 ./demo.sh
 
-# 2. 网格生成
+# 3. 网格生成
 gmsh -3 -format msh2 -order 1 -o outputs/cantilever_beam.msh inputs/cantilever_beam.geo
 
-# 3. 红创求解器
+# 4. 红创求解器
 bin/hongchuang-opt -i inputs/cantilever_beam.i
 
-# 4. 可视化
+# 5. 可视化
 paraview --data=outputs/cantilever_beam_out.e
 ```
