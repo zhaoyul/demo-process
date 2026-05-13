@@ -108,6 +108,29 @@
   csv = true
 []
 
+[VectorPostprocessors]
+  # 沿钢筋-混凝土界面垂直线采样 (x=0, y=0→0.05)
+  [interface_path]
+    type = LineValueSampler
+    variable = potential
+    start_point = '0 0 0'
+    end_point = '0 0.05 0'
+    num_points = 51
+    sort_by = id
+    outputs = csv
+  []
+  # 沿水平中心线采样 (y=0.025, x=-0.1→0.1, 贯穿双材料)
+  [centerline_path]
+    type = LineValueSampler
+    variable = potential
+    start_point = '-0.1 0.025 0'
+    end_point = '0.1 0.025 0'
+    num_points = 81
+    sort_by = id
+    outputs = csv
+  []
+[]
+
 [Postprocessors]
   [potential_interface]
     type = PointValue
