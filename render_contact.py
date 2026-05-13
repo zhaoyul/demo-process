@@ -33,16 +33,32 @@ conn_b = nc.variables['connect1'][:].data - 1
 conn_t = nc.variables['connect2'][:].data - 1
 nc.close()
 
-# ── HEX8 external quad faces ──
+# ── HEX8 external quad faces (preserve winding order) ──
 def extract_hex_faces(conn):
+    """Extract external quads from HEX8 elements keeping correct vertex winding."""
     quad_faces = [(0,1,2,3),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]
-    fc = Counter()
+    face_count = Counter()
+    face_ordered = {}  # sorted_key → correctly-ordered face
     for e in conn:
         for q in quad_faces:
-            fc[tuple(sorted([e[q[0]],e[q[1]],e[q[2]],e[q[3]]]))] += 1
-    return [f for f,c in fc.items() if c == 1]
+            # Build ordered face from element nodes
+            ordered = (e[q[0]], e[q[1]], e[q[2]], e[q[3]])
+            key = tuple(sorted(ordered))  # for uniqueness check only
+            face_count[key] += 1
+            if key not in face_ordered:
+                face_ordered[key] = ordered  # keep correct winding
+    return [face_ordered[k] for k, c in face_count.items() if c == 1]
 
-all_faces = [(f,'b') for f in extract_hex_faces(conn_b)] + [(f,'t') for f in extract_hex_faces(conn_t)]
+# Triangulate quads for robust rendering
+def triangulate_face(quad):
+    """Split quadrilateral into two triangles CCW."""
+    return [(quad[0],quad[1],quad[2]), (quad[0],quad[2],quad[3])]
+
+ext_b = extract_hex_faces(conn_b)
+ext_t = extract_hex_faces(conn_t)
+all_faces = [(tri,'b') for quad in ext_b for tri in triangulate_face(quad)] + \
+            [(tri,'t') for quad in ext_t for tri in triangulate_face(quad)]
+print(f'Triangles: bottom={len(ext_b)*2}, top={len(ext_t)*2}')
 
 # ── Setup ──
 FPS = 15
