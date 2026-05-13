@@ -212,6 +212,8 @@ for i in range(n_frames):
               transform=ax.transAxes, color='#888888', fontsize=10)
     ax.text2D(0.02, 0.79, f'FEM: Elastic (E=200 GPa, ν=0.30)  |  Contact: frictionless penalty',
               transform=ax.transAxes, color='#666666', fontsize=9)
+    ax.text2D(0.02, 0.75, f'Disp. scale: {WARP_SCALE:.0f}×', transform=ax.transAxes,
+              color='#FF6B35', fontsize=10, weight='bold')
 
     # Block labels
     center_bottom = warped[list(set(conn_bottom.flatten()))].mean(axis=0)

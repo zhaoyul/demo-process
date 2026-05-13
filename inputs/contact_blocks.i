@@ -54,7 +54,7 @@
 [Functions]
   [ramped_pressure]
     type = ParsedFunction
-    expression = 'if(t<0.5, sin(t/0.5*pi/2)*5e6, 5e6)'
+    expression = 'if(t<5.0, sin(t/5.0*pi/2)*5e6, 5e6)'
   []
 []
 
@@ -110,7 +110,7 @@
   nl_max_its = 30
   l_max_its = 100
   dt = 0.1
-  end_time = 1.0
+  end_time = 5.0
   dtmin = 0.01
 []
 
