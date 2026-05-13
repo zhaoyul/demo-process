@@ -1,8 +1,8 @@
 # 悬臂梁 Hex8 六面体单元 + 剪切自锁修正 — 对标分析
 
 > **日期**: 2026-05-13  
-> **算例**: 悬臂梁静力学分析 (Hex8 + B-bar)  
-> **对应 Issue**: de-yda  
+> **算例**: 悬臂梁静力学分析 (Hex8 + B-bar) — 均布载荷 + 端部集中力  
+> **对应 Issue**: de-yda (均布载荷), de-8ro (端部集中力)  
 > **网格**: 结构化 Hex8 (20×2×4 = 160 单元, 315 节点)  
 > **剪切自锁修正**: B-bar 方法 (volumetric_locking_correction = true)
 
@@ -16,7 +16,10 @@
 | `outputs/cantilever_beam.msh` | 重新生成 | Hex8 结构化网格 (160 单元, 315 节点) |
 | `inputs/cantilever_beam.i` | `volumetric_locking_correction = true` | 启用 B-bar 剪切/体积自锁修正 |
 | `bin/generate_hex_mesh.py` | 新增 | 结构化 Hex8 网格生成脚本 |
-| `inputs/HEX_BENCHMARK.md` | 本文件 | 理论对标与定量分析 |
+| `inputs/cantilever_beam_point.i` | 新增 | 端部集中力 P=200N (等效端面剪应力) |
+| `inputs/HEX_BENCHMARK.md` | 本文件 | 理论对标与定量分析 (含端部集中力) |
+| `bin/generate_hex_mesh.py` | 添加 `free_end` 边界 | 自由端面 (x=L) 物理组，用于集中力 BC |
+| `outputs/cantilever_beam.msh` | 重新生成 | 新增 free_end 边界 (8 个四边形)
 
 ---
 

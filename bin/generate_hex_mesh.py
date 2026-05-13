@@ -6,7 +6,8 @@
    
    Physical groups:
      - fixed_end: x=0 face (quads on yz plane)
-     - load_surface: z=0.2 face (quads on xy plane)  
+     - load_surface: z=0.2 face (quads on xy plane)
+     - free_end: x=L face (quads on yz plane) — for point-load cantilever
      - beam: all hex elements
 """
 
@@ -47,6 +48,7 @@ def generate_msh(nx=20, ny=2, nz=4, L=1.0, W=0.1, H=0.2, outpath="outputs/cantil
     elements_3d = []  # list of node id tuples
     elements_2d_fixed_end = []  # quads on x=0 face
     elements_2d_load = []  # quads on z=H face
+    elements_2d_free_end = []  # quads on x=L face (for point-load BC)
     
     elem3d_id = 1
     for k in range(nz):
@@ -76,20 +78,27 @@ def generate_msh(nx=20, ny=2, nz=4, L=1.0, W=0.1, H=0.2, outpath="outputs/cantil
                 if k == nz - 1:
                     # Top face: nodes (n4, n5, n6, n7)
                     elements_2d_load.append((n4, n5, n6, n7))
+                
+                # free_end quads: x=L face (i=nx-1)
+                if i == nx - 1:
+                    # Quad on x=L: nodes (n1, n2, n6, n5) — outward normal +x
+                    elements_2d_free_end.append((n1, n2, n6, n5))
     
     num_elems_3d = len(elements_3d)
     num_elems_2d_fixed = len(elements_2d_fixed_end)
     num_elems_2d_load = len(elements_2d_load)
+    num_elems_2d_free = len(elements_2d_free_end)
     
     # Total elements: 3D hex + 2D quads for boundaries
     # Physical groups reference element indices
     # Elements are numbered sequentially starting from the 3D elements, then 2D
-    total_elements = num_elems_3d + num_elems_2d_fixed + num_elems_2d_load
+    total_elements = num_elems_3d + num_elems_2d_fixed + num_elems_2d_load + num_elems_2d_free
     
     # Physical group element lists
     beam_elems = list(range(1, num_elems_3d + 1))
     fixed_end_elems = list(range(num_elems_3d + 1, num_elems_3d + num_elems_2d_fixed + 1))
-    load_elems = list(range(num_elems_3d + num_elems_2d_fixed + 1, total_elements + 1))
+    load_elems = list(range(num_elems_3d + num_elems_2d_fixed + 1, num_elems_3d + num_elems_2d_fixed + num_elems_2d_load + 1))
+    free_end_elems = list(range(num_elems_3d + num_elems_2d_fixed + num_elems_2d_load + 1, total_elements + 1))
     
     # Write MSH2 file
     os.makedirs(os.path.dirname(outpath) if os.path.dirname(outpath) else '.', exist_ok=True)
@@ -102,9 +111,10 @@ def generate_msh(nx=20, ny=2, nz=4, L=1.0, W=0.1, H=0.2, outpath="outputs/cantil
         
         # Physical names
         f.write("$PhysicalNames\n")
-        f.write("3\n")
+        f.write("4\n")
         f.write("2 1 \"fixed_end\"\n")
         f.write("2 2 \"load_surface\"\n")
+        f.write("2 4 \"free_end\"\n")
         f.write("3 3 \"beam\"\n")
         f.write("$EndPhysicalNames\n")
         
@@ -136,6 +146,11 @@ def generate_msh(nx=20, ny=2, nz=4, L=1.0, W=0.1, H=0.2, outpath="outputs/cantil
             f.write(f"{elem_id} 3 2 2 2 " + " ".join(str(n) for n in nids) + "\n")
             elem_id += 1
         
+        # 2D quad elements (type 3) - free_end surface (x=L)
+        for nids in elements_2d_free_end:
+            f.write(f"{elem_id} 3 2 4 4 " + " ".join(str(n) for n in nids) + "\n")
+            elem_id += 1
+        
         f.write("$EndElements\n")
     
     print(f"✓ Hex8 mesh generated: {outpath}")
@@ -143,6 +158,7 @@ def generate_msh(nx=20, ny=2, nz=4, L=1.0, W=0.1, H=0.2, outpath="outputs/cantil
     print(f"  Hex elements: {num_elems_3d}")
     print(f"  fixed_end quads: {num_elems_2d_fixed}")
     print(f"  load_surface quads: {num_elems_2d_load}")
+    print(f"  free_end quads: {num_elems_2d_free}")
     print(f"  Total elements: {total_elements}")
 
 
