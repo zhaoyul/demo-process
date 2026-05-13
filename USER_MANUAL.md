@@ -30,7 +30,7 @@ make all
 conda activate moose
 
 # 2. 生成网格
-gmsh -3 -format msh2 -o outputs/beam.msh inputs/cantilever_beam.geo
+gmsh -3 -format msh2 -o outputs/cantilever_beam.msh inputs/cantilever_beam.geo
 
 # 3. 运行求解器
 bin/hongchuang-opt -i inputs/cantilever_beam.i
@@ -118,6 +118,9 @@ Physical Surface("loaded") = {2};
 # 列出算例
 ./hongchuang_cli.py list
 
+# 全流程仿真（显式子命令）
+./hongchuang_cli.py all cantilever_beam
+
 # 帮助
 ./hongchuang_cli.py --help
 ```
@@ -161,7 +164,7 @@ gmsh output.msh
 paraview --data=output.e
 
 # 加载状态
-paraview --state=state.pvsm
+paraview --state=states/cantilever_beam_state.pvsm
 
 # 批处理 (Python)
 pvpython script.py

@@ -92,7 +92,7 @@
 []
 
 [Outputs]
-  file_base = ../outputs/cantilever_beam
+  file_base = outputs/cantilever_beam_out
   exodus = true
   csv = true
   console = true
