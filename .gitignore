@@ -54,3 +54,4 @@ miniforge3/
 # Render frame directories (temporary)
 renders/contact_frames/
 renders/es_path/
+renders/cdp_frames/
