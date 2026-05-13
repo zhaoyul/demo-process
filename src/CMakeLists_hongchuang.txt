@@ -48,18 +48,23 @@ set(HONGCHUANG_SRCS
 
   # Core solver module
   src/core/SolverCore.C
+
+  # CDP concrete material model
+  src/materials/ConcreteDamagePlasticityStressUpdate.C
 )
 
 # ─── Application Headers ───────────────────────────────────────
 set(HONGCHUANG_HEADERS
   src/HongchuangApp.h
   src/core/SolverCore.h
+  src/materials/ConcreteDamagePlasticityStressUpdate.h
 )
 
 # ─── Include Directories ───────────────────────────────────────
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/materials
 )
 
 # ─── Library: Hongchuang Core ──────────────────────────────────

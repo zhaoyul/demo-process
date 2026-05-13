@@ -14,6 +14,9 @@
 // Core solver modules
 #include "core/SolverCore.h"
 
+// CDP material model
+#include "materials/ConcreteDamagePlasticityStressUpdate.h"
+
 registerKnownLabel("HongchuangApp");
 
 InputParameters
@@ -54,6 +57,9 @@ HongchuangApp::registerObjects(Factory & factory)
 {
   // Core solver
   registerKernel(SolverCore);
+
+  // CDP concrete material model
+  registerMaterial(ConcreteDamagePlasticityStressUpdate);
 }
 
 void

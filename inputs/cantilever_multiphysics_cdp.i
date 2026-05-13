@@ -138,23 +138,30 @@
     execute_on = 'TIMESTEP_END'
   []
 
-  # ── 混凝土损伤输出 (从 ParsedMaterial 拉取) ──
-  [damage_t_out]
-    type = MaterialRealAux
+  # ── CDP 损伤计算 (基于已提取的主应力 AuxVariables) ──
+  [damage_t_kernel]
+    type = ParsedAux
     variable = damage_t
-    property = damage_t_mat
+    coupled_variables = 'max_princ'
+    constant_names = 'f_t alpha_t'
+    constant_expressions = '2.0e6 5.0e-7'
+    expression = 'if(max_princ > f_t, max(0.0, 1.0 - (f_t / max_princ) * exp(max(-700.0, alpha_t * (f_t - max_princ)))), 0.0)'
     execute_on = 'TIMESTEP_END'
   []
-  [damage_c_out]
-    type = MaterialRealAux
+  [damage_c_kernel]
+    type = ParsedAux
     variable = damage_c
-    property = damage_c_mat
+    coupled_variables = 'min_princ'
+    constant_names = 'f_c alpha_c'
+    constant_expressions = '20.0e6 2.0e-7'
+    expression = 'if(min_princ < -f_c, max(0.0, 1.0 - (f_c / abs(min_princ)) * exp(max(-700.0, alpha_c * (f_c + min_princ)))), 0.0)'
     execute_on = 'TIMESTEP_END'
   []
-  [damage_total_out]
-    type = MaterialRealAux
+  [damage_total_kernel]
+    type = ParsedAux
     variable = damage_total
-    property = damage_total_mat
+    coupled_variables = 'damage_t damage_c'
+    expression = 'max(damage_t, damage_c)'
     execute_on = 'TIMESTEP_END'
   []
 []
@@ -193,50 +200,23 @@
     block = beam
   []
 
-  # ── CDP 损伤材料 (从主应力计算损伤) ──
-  # 受拉损伤: d_t = 1 - (f_t/σ₁)·exp(α_t·(f_t - σ₁)), when σ₁ > f_t
-  #   max_princ 由 RankTwoScalarAux 提取，但 ParsedMaterial 无法直接读取 AuxVariable。
-  #   故改为: 直接使用应力张量分量的解析表达式。
-  #   对于悬臂梁热弯曲问题: σ_max ≈ σ_xx + σ_bending
-  #   简化处理: 使用应力分量直接计算
+  # ── CDP 损伤已在 [AuxKernels] 通过 ParsedAux 计算 ──
+  # 损伤变量直接从主应力 AuxVariables 计算，无需额外 Material 块。
   #
-  # 注: ParsedMaterial 需要在材料属性计算期间运行，
-  #   此时应力张量的标量分量尚未完全可用。
-  #   变通方案: 使用 GenericFunctionMaterial 定义损伤函数，
-  #   然后由 MaterialRealAux 输出。
-  #
-  # 替代方案: 使用 ParsedMaterial 基于应变分量估算损伤
-  [damage_t_mat]
-    type = ParsedMaterial
-    property_name = damage_t_mat
-    coupled_variables = 'max_princ'
-    constant_names = 'f_t alpha_t'
-    constant_expressions = '2.0e6 2000.0'
-    material_property_names = ''
-    expression = 'if(max_princ > f_t, max(0.0, 1.0 - (f_t / max_princ) * exp(alpha_t * (f_t - max_princ))), 0.0)'
-    outputs = exodus
-    block = beam
-  []
-  [damage_c_mat]
-    type = ParsedMaterial
-    property_name = damage_c_mat
-    coupled_variables = 'min_princ'
-    constant_names = 'f_c alpha_c'
-    constant_expressions = '20.0e6 1000.0'
-    material_property_names = ''
-    expression = 'if(min_princ < -f_c, max(0.0, 1.0 - (f_c / abs(min_princ)) * exp(alpha_c * (f_c + min_princ))), 0.0)'
-    outputs = exodus
-    block = beam
-  []
-  [damage_total_mat]
-    type = ParsedMaterial
-    property_name = damage_total_mat
-    coupled_variables = 'damage_t damage_c'
-    material_property_names = ''
-    expression = 'max(damage_t, damage_c)'
-    outputs = exodus
-    block = beam
-  []
+  # 如需使用自定义 C++ 类 ConcreteDamagePlasticityStressUpdate（需编译 HongchuangApp）:
+  #   替换 [stress] 块为:
+  #     [cdp_stress]
+  #       type = ConcreteDamagePlasticityStressUpdate
+  #       youngs_modulus = 30.0e9
+  #       poissons_ratio = 0.20
+  #       f_t = 2.0e6
+  #       f_c = 20.0e6
+  #       alpha_t = 5.0e-7
+  #       alpha_c = 2.0e-7
+  #       block = beam
+  #     []
+  #   此时 damage_t/damage_c/damage_total 由 C++ 类自动输出为 MaterialProperty,
+  #   通过 MaterialRealAux 映射到 AuxVariables. 移除 ParsedAux 损伤块即可.
 []
 
 [Executioner]
