@@ -50,3 +50,7 @@ CLAUDE.md
 # Conda / mamba environments
 mambaforge/
 miniforge3/
+
+# Render frame directories (temporary)
+renders/contact_frames/
+renders/es_path/
