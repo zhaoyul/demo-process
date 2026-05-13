@@ -75,6 +75,60 @@ G = E / (2(1+ν)) = 2×10¹¹ / (2 × 1.30) = 7.692 × 10¹⁰ Pa
 
 ---
 
+## 三-bis、端部集中力工况 — 理论解 (Euler-Bernoulli + Timoshenko)
+
+> **Issue**: de-8ro | **输入文件**: `inputs/cantilever_beam_point.i`
+
+### 3b.1 载荷参数
+
+```
+端部集中力: P = 200 N (↓ 负 z 方向)
+等效端面剪应力: τ = P / A_end = 200 / (0.1 × 0.2) = 10,000 Pa
+施加面: free_end (x=L, 面积 0.02 m²)
+```
+
+> 转换关系: reviewer 原均布载荷 10 kPa × 端面面积 0.1×0.2 = 200 N
+
+### 3b.2 弯曲挠度 (Euler-Bernoulli, 端部集中力)
+
+```
+δ_bend = PL³ / (3EI)
+       = 200 × 1³ / (3 × 2×10¹¹ × 6.667×10⁻⁵)
+       = 200 / 4.0002×10⁷
+       = 5.0000 × 10⁻⁶ m
+```
+
+### 3b.3 剪切挠度 (Timoshenko 修正, 端部集中力)
+
+```
+δ_shear = PL / (κGA)
+        = 200 × 1 / ((5/6) × 7.692×10¹⁰ × 0.02)
+        = 200 / 1.282×10⁹
+        = 1.560 × 10⁻⁷ m
+```
+
+### 3b.4 总理论挠度
+
+```
+δ_total = δ_bend + δ_shear
+        = 5.0000×10⁻⁶ + 1.560×10⁻⁷
+        = 5.1560 × 10⁻⁶ m  ≈ 5.156 µm
+```
+
+**剪切变形占比**: 1.560×10⁻⁷ / 5.1560×10⁻⁶ = 3.03%
+
+### 3b.5 与均布载荷对比
+
+| 工况 | 理论公式 | 弯曲挠度 (µm) | 总挠度 (µm) | 剪切占比 |
+|------|----------|---------------|-------------|----------|
+| 均布载荷 w=1000 N/m | wL⁴/(8EI) | 9.375 | 9.765 | 3.99% |
+| 端部集中力 P=200 N | PL³/(3EI) | 5.000 | 5.156 | 3.03% |
+
+> 两种工况的等效总载荷均为 200 N (均布: 10 kPa × 0.1 m² = 1000 N/m × 1 m 的积分?), 
+> 实际均布总载荷 = 10 kPa × 0.1 m × 1 m = 1000 N。集中力工况载荷为均布的 1/5。
+
+---
+
 ## 四、网格方案对比
 
 ### 4.1 旧方案 (TET4 四面体)
@@ -152,6 +206,14 @@ B̄ = B_dil + B_dev
 | 旧 FEM (TET4 精细网格) | MOOSE | 9.365 | -4.1% (网格加密缓解) |
 | **新 FEM (Hex8+B-bar)** | **MOOSE** | **待求解** | **预期 < 2%** |
 
+### 端部集中力工况
+
+| 来源 | 公式 | 挠度 (µm) | 偏差 vs Timoshenko |
+|------|------|-----------|---------------------|
+| Euler-Bernoulli (纯弯曲) | PL³/(3EI) | 5.000 | -3.03% (忽略剪切) |
+| Timoshenko (弯曲+剪切) | PL³/(3EI) + PL/(κGA) | **5.156** | **基准** |
+| **新 FEM (端部集中力)** | **MOOSE** | **待求解** | **预期 < 2%** |
+
 ---
 
 ## 七、复现步骤
@@ -166,13 +228,26 @@ gmsh -3 -format msh2 -order 1 -o outputs/cantilever_beam.msh inputs/cantilever_b
 # 3. 编译 MOOSE (如未编译)
 cd build/moose/modules/solid_mechanics && METHOD=opt make -j8
 
-# 4. 运行求解
+# 4. 运行求解 (均布载荷)
 ./bin/hongchuang-opt -i inputs/cantilever_beam.i
 
-# 5. 提取自由端挠度
+# 5. 运行求解 (端部集中力)
+./bin/hongchuang-opt -i inputs/cantilever_beam_point.i
+
+# 6. 提取自由端挠度 (均布载荷)
 python3 -c "
 import csv
 with open('outputs/cantilever_beam_out.csv') as f:
+    for row in csv.DictReader(f):
+        if float(row['time']) > 0:
+            dz = float(row['tip_disp_z'])
+            print(f'tip_disp_z = {dz:.6e} m')
+"
+
+# 7. 提取自由端挠度 (端部集中力)
+python3 -c "
+import csv
+with open('outputs/cantilever_beam_point_out.csv') as f:
     for row in csv.DictReader(f):
         if float(row['time']) > 0:
             dz = float(row['tip_disp_z'])
