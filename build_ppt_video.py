@@ -91,17 +91,28 @@ p.font.size = Pt(16); p.font.color.rgb = GRAY; p.alignment = PP_ALIGN.CENTER
 # Slides 2-5: Each with one video
 # ================================================================
 videos = [
-    ("悬臂梁线弹性加载", "beam_loading.mp4",
-     "真实 FEM 四面体网格 · 11 载荷步 · 3000× 变形放大 · 逐面着色"),
-    ("接触力学演化", "contact.mp4",
-     "Coulomb 摩擦 · 11 时间步 · 位移 0→0.17mm · 网格逐面着色"),
-    ("静电双材料电位场", "electrostatic.mp4",
-     "钢(σ=10⁷) + 混凝土(σ=10⁻²) · 电位 0→1V 渐进 · 3D 挤出网格"),
-    ("多物理耦合 (热+力+损伤)", "multiphysics_coupling.mp4",
-     "温度 · 位移 · 损伤 三场轮播 · 直接耦合求解 · 单求解器"),
+    # Demo 1: 悬臂梁静力学 (Hex8+B-bar+集中力)
+    ("Demo 1: 悬臂梁静力学 (Hex8 + B-bar + 集中力)", "beam_loading.mp4",
+     "Hex8 六面体单元 · B-bar 体积锁定处理 · 集中载荷 · 3000× 变形放大 · 逐面着色"),
+    # Demo 2: 接触力学 (5s真实FEM渲染)
+    ("Demo 2: 接触力学 (5s 真实 FEM 渲染)", "contact.mp4",
+     "Lagrange 乘子法接触约束 · Coulomb 摩擦 · 位移 0→0.17mm · 网格逐面着色 · 真实求解器渲染"),
+    # Demo 3: 双材料静电场 (含路径采样)
+    ("Demo 3: 双材料静电场", "electrostatic.mp4",
+     "钢(σ=10⁷ S/m) + 混凝土(σ=10⁻² S/m) · 电位 0→1V 渐进 · 3D 挤出网格", "electrostatic_path.mp4"),
+    # Demo 4: 热-力-损伤三场耦合 (CDP 章节)
+    ("Demo 4: 热-力-损伤三场耦合 (CDP)", "cdp_damage.mp4",
+     "Concrete Damaged Plasticity · 温度-应力-损伤直接耦合 · 损伤变量演化 · 单求解器全隐式"),
 ]
 
-for title, fname, desc in videos:
+for entry in videos:
+    if len(entry) == 4:
+        title, fname, desc, extra_fname = entry
+        has_extra = True
+    else:
+        title, fname, desc = entry
+        has_extra = False
+
     sl = prs.slides.add_slide(prs.slide_layouts[6])
     dark_bg(sl)
     add_title(sl, title)
@@ -109,7 +120,24 @@ for title, fname, desc in videos:
     
     vpath = RENDERS / fname
     if vpath.exists():
-        add_video(sl, vpath, Inches(0.6), Inches(1.3), Inches(12.1), Inches(5.8))
+        if has_extra:
+            # Main video (left 75%)
+            add_video(sl, vpath, Inches(0.3), Inches(1.3), Inches(9.5), Inches(5.8))
+            # Path sampling video (right 25%, smaller)
+            extra_path = RENDERS / extra_fname
+            if extra_path.exists():
+                txBox = sl.shapes.add_textbox(Inches(10.1), Inches(1.3), Inches(3), Inches(0.4))
+                p = txBox.text_frame.paragraphs[0]
+                p.text = "路径采样"
+                p.font.size = Pt(12); p.font.color.rgb = GOLD; p.alignment = PP_ALIGN.CENTER
+                add_video(sl, extra_path, Inches(10.1), Inches(1.8), Inches(3), Inches(5.3))
+            else:
+                txBox = sl.shapes.add_textbox(Inches(10.1), Inches(3), Inches(3), Inches(1))
+                p = txBox.text_frame.paragraphs[0]
+                p.text = f"[路径采样未找到]"
+                p.font.size = Pt(14); p.font.color.rgb = GRAY; p.alignment = PP_ALIGN.CENTER
+        else:
+            add_video(sl, vpath, Inches(0.6), Inches(1.3), Inches(12.1), Inches(5.8))
     else:
         txBox = sl.shapes.add_textbox(Inches(2), Inches(3), Inches(9), Inches(1))
         p = txBox.text_frame.paragraphs[0]
@@ -117,29 +145,29 @@ for title, fname, desc in videos:
         p.font.size = Pt(20); p.font.color.rgb = RED; p.alignment = PP_ALIGN.CENTER
 
 # ================================================================
-# Slide 6: Summary
+# Slide 7: Summary
 # ================================================================
 sl = prs.slides.add_slide(prs.slide_layouts[6])
 dark_bg(sl)
 
-txBox = sl.shapes.add_textbox(Inches(1), Inches(1), Inches(11), Inches(1))
+txBox = sl.shapes.add_textbox(Inches(1), Inches(0.8), Inches(11), Inches(0.8))
 p = txBox.text_frame.paragraphs[0]
 p.text = "平台能力总结"
 p.font.size = Pt(36); p.font.bold = True; p.font.color.rgb = RED; p.alignment = PP_ALIGN.CENTER
 
 items = [
-    "✓ 6 大验证算例全部通过",
-    "✓ 网格收敛精度 0.11% (vs 理论解)",
-    "✓ 端到端管线: Gmsh → MOOSE → ParaView",
-    "✓ 3 物理场直接耦合 (热+力+损伤)",
-    "✓ 11 个 ExodusII (.e) 输出文件",
-    "✓ 完整文档: 三手册 + 架构 + 性能 + 回归基线",
+    "✓ 4 大演示场景: 静力学 · 接触 · 静电 · 热-力-损伤(CDP)",
+    "✓ Hex8 + B-bar 单元 · Lagrange 乘子法接触约束",
+    "✓ 温度-应力-损伤三场直接耦合 (CDP 本构)",
+    "✓ 网格收敛精度 0.11% (vs Euler-Bernoulli 理论解)",
+    "✓ 端到端管线: Gmsh → hongchuang-opt (MOOSE) → ParaView",
+    "✓ 11 个 ExodusII (.e) 输出文件 · 完整文档体系",
 ]
 for i, item in enumerate(items):
-    txBox = sl.shapes.add_textbox(Inches(2), Inches(2.2 + i * 0.7), Inches(9), Inches(0.5))
+    txBox = sl.shapes.add_textbox(Inches(2), Inches(1.8 + i * 0.65), Inches(9), Inches(0.5))
     p = txBox.text_frame.paragraphs[0]
     p.text = item
-    p.font.size = Pt(20); p.font.color.rgb = GOLD if i == 2 else WHITE
+    p.font.size = Pt(18); p.font.color.rgb = GOLD if i == 2 else WHITE
 
 # Save
 prs.save(str(OUT))
