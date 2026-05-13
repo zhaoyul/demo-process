@@ -274,10 +274,10 @@ paraview --data=outputs/cantilever_beam_out.e
 
 ---
 
-## 9.3 第3条：接触力学 5s 真实 FEM Exodus 数据渲染
+## 9.3 第3条：接触力学 5s 完整瞬态 FEM 渲染
 
 ### 问题
-原接触动画使用简化渲染管线，未直接读取 FEM Exodus 输出；模拟时间仅 1s，缺少变形比例标注。
+原接触动画使用硬编码示意脚本，未读取真实 FEM Exodus 输出；模拟时间仅 1s，缺少完整瞬态求解结果。
 
 ### 修改内容
 
@@ -285,24 +285,25 @@ paraview --data=outputs/cantilever_beam_out.e
 
 | 文件 | 修改点 | 说明 |
 |------|--------|------|
-| `render_contact.py` | 完全重写 | 使用 netCDF4 读取 Exodus 输出，提取位移场 + 接触压力 |
-| `inputs/contact_blocks.i` | 改为瞬态求解器+渐变载荷 | Pressure BC 替代 NeumannBC，正弦渐变载荷 |
-| `inputs/contact_blocks.geo` | 新增 | Gmsh 几何建模：两体分离块 + Coherence 节点一致性 |
+| `render_contact.py` | 完全重写 | 使用 netCDF4 读取 Exodus，提取位移场 + 接触压力 |
+| `inputs/contact_blocks.i` | 3D 接触瞬态求解 | 位移控制加载（sin ramp），end_time=5.0s |
+| `inputs/contact_blocks.geo` | 新增 | Gmsh 几何建模：两体分离块 |
 
-**渲染管线特性:**
-- 支持瞬态多时间步与稳态伪瞬态两种模式
-- 3D 渲染使用 Poly3DCollection，暗色品牌风格
-- 动画中实时显示 FEM 数值 (δ_z, P_contact)
-- 自动检测零位移并显示警告
-
-#### 3b. 模拟时间扩展至 5s + 变形比例标注 (de-6ga)
+#### 3b. 瞬态求解收敛修复 (de-6ga, 最终修复 30a8d7c)
 
 | 文件 | 修改点 | 说明 |
 |------|--------|------|
-| `inputs/contact_blocks.i` | `end_time 1.0→5.0` | ramped_pressure over full 5s |
-| `render_contact.py` | 添加变形比例标注 | 动画帧上显示 `Disp. scale: N×` |
+| `inputs/contact_blocks.i` | GeneratedMesh (4×2×10 HEX8) | 替代 FileMesh，位移控制替代压力加载，11步全部收敛 |
+| `render_contact.py` | HEX8 面三角剖分 + 100× 变形 | 正确提取 HEX8 外表面（152 三角面/块），位移幅值着色（蓝→红） |
 
-**求解参数:** dt=0.1 (50 步), dtmin=0.01 (自适应缩减), ANIM_DURATION=5.0s 与 FEM 计算时间一致。
+**求解参数:**
+- 网格：80 HEX8 单元 (40/block)，165 节点，495 自由度
+- 求解器：Transient, PJFNK, MUMPS direct
+- 时间步：dt=0.5s, end_time=5.0s, **11 步全部收敛**
+- 最终位移：δ_z_max = 0.500 mm（100× 变形放大显示）
+- 接触：frictionless penalty
+
+**视频输出:** `renders/contact.mp4` (156 KB, 90帧 @15fps, 6s)
 
 ### Git 提交
 
@@ -310,6 +311,8 @@ paraview --data=outputs/cantilever_beam_out.e
 |--------|------|------|
 | `48aef29` | 2026-05-13 11:32 | nitro |
 | `33156ba` | 2026-05-13 11:55 | nitro |
+| `3ae2fcb` | 2026-05-13 16:45 | mayor |
+| `30a8d7c` | 2026-05-13 16:55 | mayor |
 
 ---
 
