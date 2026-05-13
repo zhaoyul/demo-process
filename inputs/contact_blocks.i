@@ -1,13 +1,45 @@
-# 红创科技 — 接触力学: FileMesh + 瞬态求解 (ramped load)
+# 红创 — 接触力学: 3D瞬态5s (位移控制, GeneratedMesh)
 
 [Mesh]
-  type = FileMesh
-  file = ../outputs/contact_blocks.msh
-  construct_side_list_from_node_list = true
+  [gen]
+    type = GeneratedMeshGenerator
+    dim = 3
+    nx = 4
+    ny = 2
+    nz = 10
+    xmin = 0
+    xmax = 0.1
+    ymin = 0
+    ymax = 0.05
+    zmin = 0
+    zmax = 0.1
+  []
+  [bottom]
+    type = SubdomainBoundingBoxGenerator
+    input = gen
+    block_id = 1
+    bottom_left = '0 0 0'
+    top_right = '0.1 0.05 0.05'
+  []
+  [top]
+    type = SubdomainBoundingBoxGenerator
+    input = bottom
+    block_id = 2
+    bottom_left = '0 0 0.05'
+    top_right = '0.1 0.05 0.1'
+  []
+  [interface]
+    type = SideSetsBetweenSubdomainsGenerator
+    input = top
+    primary_block = 1
+    paired_block = 2
+    new_boundary = 'contact_bottom'
+  []
 []
 
 [GlobalParams]
   displacements = 'disp_x disp_y disp_z'
+  block = '1 2'
 []
 
 [Variables]
@@ -19,83 +51,56 @@
 [Kernels]
   [TensorMechanics]
     displacements = 'disp_x disp_y disp_z'
-    use_displaced_mesh = false
+    use_displaced_mesh = true
   []
 []
 
 [BCs]
   [bottom_fixed]
     type = DirichletBC
-    variable = disp_z
-    boundary = bottom_fixed
-    value = 0.0
+    variable = disp_z boundary = bottom value = 0.0
   []
   [bottom_fixed_x]
     type = DirichletBC
-    variable = disp_x
-    boundary = bottom_fixed
-    value = 0.0
+    variable = disp_x boundary = bottom value = 0.0
   []
   [bottom_fixed_y]
     type = DirichletBC
-    variable = disp_y
-    boundary = bottom_fixed
-    value = 0.0
+    variable = disp_y boundary = bottom value = 0.0
   []
-  [top_pressure]
-    type = Pressure
-    variable = disp_z
-    boundary = top_pressure
-    function = ramped_pressure
-    factor = -1.0
+  [top_disp]
+    type = FunctionDirichletBC
+    variable = disp_z boundary = top
+    function = ramped_disp
   []
 []
 
 [Functions]
-  [ramped_pressure]
+  [ramped_disp]
     type = ParsedFunction
-    expression = 'if(t<5.0, sin(t/5.0*pi/2)*5e6, 5e6)'
+    expression = 'if(t<5.0, -sin(t/5.0*pi/2)*0.0005, -0.0005)'
   []
 []
 
 [Contact]
   [block_contact]
     primary = contact_bottom
-    secondary = contact_top
+    secondary = top
     model = frictionless
-    penalty = 1e9
-    normalize_penalty = true
+    penalty = 1e10
   []
 []
 
 [Materials]
-  [elasticity_bottom]
+  [elasticity]
     type = ComputeIsotropicElasticityTensor
-    youngs_modulus = 2.0e11
-    poissons_ratio = 0.30
-    block = block_bottom
+    youngs_modulus = 2.0e11 poissons_ratio = 0.30
   []
-  [elasticity_top]
-    type = ComputeIsotropicElasticityTensor
-    youngs_modulus = 2.0e11
-    poissons_ratio = 0.30
-    block = block_top
-  []
-  [strain_bottom]
+  [strain]
     type = ComputeSmallStrain
-    block = block_bottom
   []
-  [strain_top]
-    type = ComputeSmallStrain
-    block = block_top
-  []
-  [stress_bottom]
+  [stress]
     type = ComputeLinearElasticStress
-    block = block_bottom
-  []
-  [stress_top]
-    type = ComputeLinearElasticStress
-    block = block_top
   []
 []
 
@@ -104,31 +109,23 @@
   solve_type = 'PJFNK'
   petsc_options_iname = '-pc_type -pc_factor_mat_solver_type'
   petsc_options_value = 'lu mumps'
-  line_search = 'none'
-  nl_rel_tol = 1.0e-4
-  nl_abs_tol = 1.0e-6
+  nl_rel_tol = 1.0e-6
+  nl_abs_tol = 1.0e-8
   nl_max_its = 30
-  l_max_its = 100
-  dt = 0.1
+  dt = 0.5
   end_time = 5.0
-  dtmin = 0.01
 []
 
 [Outputs]
   file_base = outputs/contact_blocks_out
-  exodus = true
-  csv = true
+  exodus = true csv = true
 []
 
 [Postprocessors]
   [top_disp_z]
-    type = PointValue
-    variable = disp_z
-    point = '0.05 0.025 0.05'
+    type = PointValue variable = disp_z point = '0.05 0.025 0.1'
   []
-  [contact_pressure]
-    type = ElementExtremeValue
-    variable = contact_pressure
-    block = 'block_bottom block_top'
+  [contact_pressure_max]
+    type = ElementExtremeValue variable = contact_pressure block = '1 2'
   []
 []
