@@ -78,6 +78,24 @@ pipeline: ## Run full pipeline: mesh → solve → post
 	@echo "[红创科技] 全流程仿真管线启动..."
 	@$(MAKE) run
 
+.PHONY: pipeline-aac
+pipeline-aac: ## Run complete AAC test pipeline (18 simulations + rendering)
+	@echo "[红创科技] AAC 试验全流程管线启动..."
+	@./aac_pipeline.sh --headless
+
+.PHONY: pipeline-aac-interactive
+pipeline-aac-interactive: ## Run AAC pipeline in interactive demo mode
+	@echo "[红创科技] AAC 试验交互演示模式..."
+	@./aac_pipeline.sh
+
+.PHONY: pipeline-aac-stage
+pipeline-aac-stage: ## Run a specific AAC pipeline stage (usage: make pipeline-aac-stage STAGE=N)
+	@if [ -z "$(STAGE)" ]; then \
+		echo "用法: make pipeline-aac-stage STAGE=1-5"; \
+		exit 1; \
+	fi
+	@./aac_pipeline.sh --headless --stage $(STAGE)
+
 # ---------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------
