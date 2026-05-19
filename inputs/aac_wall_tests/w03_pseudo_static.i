@@ -1,5 +1,5 @@
 # AAC Wall Pseudo-Static Test — W03 Standard (3600x3600x240)
-# Simplified: 2D plane stress, ideal plasticity, 3-phase cyclic loading
+# 5-phase cyclic loading (JGJ/T 101-2015), damage softening via IsotropicPlasticityStressUpdate
 
 [Mesh]
   type = GeneratedMesh
@@ -69,7 +69,7 @@
 [Functions]
   [cyclic_loading]
     type = ParsedFunction
-    expression = 'if(t<40, 0.00655*sin(2*pi*t/40-pi/2), if(t<80, 0.0090*sin(2*pi*(t-40)/40-pi/2), 0.0144*sin(2*pi*(t-80)/80-pi/2)))'
+    expression = 'if(t<40, 0.0012*sin(2*pi*t/40-pi/2), if(t<80, 0.0036*sin(2*pi*(t-40)/40-pi/2), if(t<160, 0.0072*sin(2*pi*(t-80)/80-pi/2), if(t<280, 0.0144*sin(2*pi*(t-160)/120-pi/2), 0.030*sin(2*pi*(t-280)/120-pi/2)))))'
   []
 []
 
@@ -105,7 +105,7 @@
   [plasticity]
     type = IsotropicPlasticityStressUpdate
     yield_stress = 3.5e6
-    hardening_constant = 0.0
+    hardening_constant = -5.0e7
   []
 []
 
@@ -133,13 +133,14 @@
   petsc_options_value = 'hypre boomeramg'
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
-  nl_max_its = 20
+  nl_max_its = 30
   line_search = bt
+  nl_forced_its = 1
 
   start_time = 0.0
-  end_time = 160.0
-  dt = 5.0
-  dtmin = 0.1
+  end_time = 400.0
+  dt = 2.5
+  dtmin = 0.01
 
   [TimeIntegrator]
     type = ImplicitEuler
