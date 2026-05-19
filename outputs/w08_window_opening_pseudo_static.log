@@ -1,0 +1,61 @@
+
+[33m
+*** Deprecation Warning ***
+/home/kevin/gt/demo/polecats/chrome/demo/inputs/aac_wall_tests/w08_window_opening_pseudo_static.i:74.3: The 'Kernels/TensorMechanics' syntax is deprecated. Please use 'Physics/SolidMechanics/QuasiStatic' instead.[39m
+Stack frames: 14
+0: libMesh::print_trace(std::ostream&)
+1: void moose::internal::mooseDeprecatedStream<libMesh::BasicOStreamProxy<char, std::char_traits<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(libMesh::BasicOStreamProxy<char, std::char_traits<char> >&, bool, bool, bool, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+2: Moose::Builder::walkRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, hit::Node*)
+3: Moose::Builder::walk(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node*)
+4: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
+5: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
+6: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
+7: Moose::Builder::build()
+8: MooseApp::setupOptions()
+9: MooseApp::run()
+10: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x55d8ae23a0f2]
+11: /lib/libc.so.6(+0x27741) [0x7f67fdc27741]
+12: __libc_start_main
+13: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x55d8ae23a365]
+
+
+[36m
+*** Info ***
+/home/kevin/gt/demo/polecats/chrome/demo/inputs/aac_wall_tests/w08_window_opening_pseudo_static.i:74.3:
+The following occurred in the Action 'TensorMechanics' of type LegacyTensorMechanicsAction.
+
+SolidMechanics Action: selecting 'total small strain' formulation. Use `incremental = true` to select 'incremental small strain' instead.[39m
+sh: line 1: mpicxx: command not found
+JIT compile failed.
+sh: line 1: mpicxx: command not found
+JIT compile failed.
+sh: line 1: mpicxx: command not found
+JIT compile failed.
+
+[31m
+*** ERROR ***
+Invalid function
+if(x > x1 && x < x2 && y > y1 && y < y2, 1.0, 0.0)
+Error:
+Syntax error: Unknown identifier[39m
+
+Stack frames: 18
+0: libMesh::print_trace(std::ostream&)
+1: moose::internal::mooseErrorRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node const*, bool)
+2: void mooseError<char const (&) [18], std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const (&) [9], char const*>(char const (&) [18], std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const (&) [9], char const*&&)
+3: /home/kevin/gt/demo/mayor/rig/build/moose/framework/libmoose-opt.so.0(+0x2948ea1) [0x7f6815548ea1]
+4: ParsedAux::ParsedAux(InputParameters const&)
+5: RegistryEntry<ParsedAux>::buildShared(InputParameters const&)
+6: std::shared_ptr<MooseObject> Factory::createTempl<std::shared_ptr<MooseObject> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int, std::optional<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&)
+7: Factory::create(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int, bool)
+8: AuxiliarySystem::addKernel(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters&)
+9: Action::timedAct()
+10: ActionWarehouse::executeActionsWithAction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+11: ActionWarehouse::executeAllActions()
+12: MooseApp::runInputFile()
+13: MooseApp::run()
+14: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x55d8ae23a0f2]
+15: /lib/libc.so.6(+0x27741) [0x7f67fdc27741]
+16: __libc_start_main
+17: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x55d8ae23a365]
+Abort(1) on node 0 (rank 0 in comm 0): application called MPI_Abort(MPI_COMM_WORLD, 1) - process 0
