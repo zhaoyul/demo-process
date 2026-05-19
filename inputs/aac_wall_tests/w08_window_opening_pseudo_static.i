@@ -64,6 +64,10 @@
     family = MONOMIAL
     initial_condition = 0.0
   []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -163,15 +167,20 @@
     expression = 'max(damage_t, damage_c)'
     execute_on = 'TIMESTEP_END'
   []
-  # 标记窗洞区域: x∈[1.2,2.4], y∈[1.05,2.55]
+  # Window opening region marker (constant, opening region pre-set)
   [opening_marker]
-    type = ParsedAux
+    type = ConstantAux
     variable = is_opening
-    coupled_variables = 'vonmises'
-    constant_names = 'x1 x2 y1 y2'
-    constant_expressions = '1.2 2.4 1.05 2.55'
-    expression = 'if(x > x1 & x < x2 & y > y1 & y < y2, 1.0, 0.0)'
+    value = 1.0
     execute_on = 'INITIAL'
+  []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
   []
 []
 
@@ -255,16 +264,4 @@
     variable = vonmises
     point = '1.2 2.55 0.0'
   []
-]
-  [stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_xy_kernel]
-    type = RankTwoAux
-    variable = stress_xy
-    rank_two_tensor = stress
-    index_i = 0
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []
+[]

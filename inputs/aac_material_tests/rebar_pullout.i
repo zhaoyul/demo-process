@@ -38,6 +38,10 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -82,6 +86,14 @@
     variable = plastic_strain
     rank_two_tensor = plastic_strain
     scalar_type = EffectiveStrain
+    execute_on = 'TIMESTEP_END'
+  []
+  [stress_yy_kernel]
+    type = RankTwoAux
+    variable = stress_yy
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
     execute_on = 'TIMESTEP_END'
   []
 []
@@ -145,15 +157,3 @@
     point = '0.0025 0.25 0.0'
   []
 []
-  [stress_yy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_yy_kernel]
-    type = RankTwoAux
-    variable = stress_yy
-    rank_two_tensor = stress
-    index_i = 1
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []

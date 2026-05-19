@@ -57,6 +57,10 @@
     family = MONOMIAL
     initial_condition = 0.0
   []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -156,6 +160,14 @@
     expression = 'max(damage_t, damage_c)'
     execute_on = 'TIMESTEP_END'
   []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -230,15 +242,3 @@
     variable = damage_total
   []
 []
-  [stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_xy_kernel]
-    type = RankTwoAux
-    variable = stress_xy
-    rank_two_tensor = stress
-    index_i = 0
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []

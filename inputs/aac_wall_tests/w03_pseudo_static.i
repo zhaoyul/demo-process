@@ -64,6 +64,10 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -189,6 +193,14 @@
     property = effective_plastic_strain
     execute_on = 'TIMESTEP_END'
   []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -270,15 +282,3 @@
     point = '1.8 1.8 0.0'
   []
 []
-  [stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_xy_kernel]
-    type = RankTwoAux
-    variable = stress_xy
-    rank_two_tensor = stress
-    index_i = 0
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []

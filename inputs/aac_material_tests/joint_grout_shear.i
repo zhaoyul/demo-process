@@ -47,6 +47,10 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -107,6 +111,14 @@
     index_j = 1
     execute_on = 'TIMESTEP_END'
   []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -162,15 +174,3 @@
     variable = shear_stress_xy
   []
 []
-  [stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_xy_kernel]
-    type = RankTwoAux
-    variable = stress_xy
-    rank_two_tensor = stress
-    index_i = 0
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []

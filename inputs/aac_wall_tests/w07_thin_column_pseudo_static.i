@@ -59,6 +59,10 @@
     family = MONOMIAL
     initial_condition = 0.0
   []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -158,21 +162,19 @@
     expression = 'max(damage_t, damage_c)'
     execute_on = 'TIMESTEP_END'
   []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
   # 构造柱增强: 边缘区域弹性模量提升 (C40混凝土 + 钢筋的等效)
   # 柱区: x < 0.2m 或 x > 3.4m, E_col = 32.5 GPa
-  # 墙区: 0.2m < x < 3.4m, E_wall = 1.75 GPa
-  [elasticity]
-    type = ParsedMaterial
-    property_name = youngs_modulus_function
-    coupled_variables = 'vonmises'
-    constant_names = 'E_col E_wall x_left x_right'
-    constant_expressions = '32.5e9 1.75e9 0.2 3.4'
-    expression = 'if(x < x_left | x > x_right, E_col, E_wall)'
-    outputs = exodus
-  []
   [elasticity_tensor]
     type = ComputeIsotropicElasticityTensor
     youngs_modulus = 1.75e9
@@ -243,16 +245,4 @@
     type = ElementExtremeValue
     variable = damage_total
   []
-]
-  [stress_xy]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_xy_kernel]
-    type = RankTwoAux
-    variable = stress_xy
-    rank_two_tensor = stress
-    index_i = 0
-    index_j = 1
-    execute_on = 'TIMESTEP_END'
-  []
+[]

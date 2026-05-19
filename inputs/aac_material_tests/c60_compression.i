@@ -45,6 +45,10 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
 [Kernels]
@@ -100,6 +104,14 @@
     variable = min_princ
     rank_two_tensor = stress
     scalar_type = MinPrincipal
+    execute_on = 'TIMESTEP_END'
+  []
+  [stress_zz_kernel]
+    type = RankTwoAux
+    variable = stress_zz
+    rank_two_tensor = stress
+    index_i = 2
+    index_j = 2
     execute_on = 'TIMESTEP_END'
   []
 []
@@ -167,15 +179,3 @@
     point = '0.05 0.05 0.05'
   []
 []
-  [stress_zz]
-    order = CONSTANT
-    family = MONOMIAL
-  []
-  [stress_zz_kernel]
-    type = RankTwoAux
-    variable = stress_zz
-    rank_two_tensor = stress
-    index_i = 2
-    index_j = 2
-    execute_on = 'TIMESTEP_END'
-  []
