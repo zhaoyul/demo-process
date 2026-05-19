@@ -55,3 +55,10 @@ miniforge3/
 renders/contact_frames/
 renders/es_path/
 renders/cdp_frames/
+
+# AAC pipeline generated reports
+renders/AAC_COMPLETE_REPORT.txt
+renders/aac_material_report.txt
+renders/aac_pipeline_results.json
+renders/aac_wall_comparison.txt
+renders/aac_wall_summary.txt
