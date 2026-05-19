@@ -163,6 +163,14 @@
     expression = 'max(damage_t, damage_c)'
     execute_on = 'TIMESTEP_END'
   []
+  [stress_xy_aux]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -174,7 +182,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -204,10 +212,9 @@
 []
 
 [Outputs]
-  file_base = outputs/w09_hinged_pseudo_static
+  file_base = outputs/aac_wall_tests/w09_hinged_pseudo_static
   exodus = true
   csv = true
-  interval = 10
 []
 
 [Postprocessors]

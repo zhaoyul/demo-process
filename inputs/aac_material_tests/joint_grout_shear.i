@@ -117,7 +117,7 @@
     poissons_ratio = 0.20
   []
   [aac_strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [aac_stress]
     type = ComputeFiniteStrainElasticStress
@@ -141,10 +141,9 @@
 []
 
 [Outputs]
-  file_base = outputs/joint_grout_shear
+  file_base = outputs/aac_material_tests/joint_grout_shear
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]

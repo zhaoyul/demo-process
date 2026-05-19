@@ -116,6 +116,14 @@
     expression = 'if(min_princ < -f_c, max(0.0, 1.0 - (f_c / abs(min_princ)) * exp(max(-700.0, alpha_c * (f_c + min_princ)))), 0.0)'
     execute_on = 'TIMESTEP_END'
   []
+  [stress_yy_aux]
+    type = RankTwoAux
+    variable = stress_yy
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
+    execute_on = \'TIMESTEP_END\'
+  []
 []
 
 [Materials]
@@ -126,7 +134,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -150,7 +158,7 @@
 []
 
 [Outputs]
-  file_base = outputs/w01_axial_compression
+  file_base = outputs/aac_wall_tests/w01_axial_compression
   exodus = true
   csv = true
 []

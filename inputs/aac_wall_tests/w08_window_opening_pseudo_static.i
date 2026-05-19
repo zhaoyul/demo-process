@@ -186,7 +186,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -217,10 +217,9 @@
 []
 
 [Outputs]
-  file_base = outputs/w08_window_opening_pseudo_static
+  file_base = outputs/aac_wall_tests/w08_window_opening_pseudo_static
   exodus = true
   csv = true
-  interval = 10
 []
 
 [Postprocessors]

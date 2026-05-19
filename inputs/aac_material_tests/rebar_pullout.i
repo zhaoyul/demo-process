@@ -93,7 +93,7 @@
     poissons_ratio = 0.30
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -123,10 +123,9 @@
 []
 
 [Outputs]
-  file_base = outputs/rebar_pullout
+  file_base = outputs/aac_material_tests/rebar_pullout
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]

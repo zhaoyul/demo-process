@@ -148,7 +148,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -172,7 +172,7 @@
 []
 
 [Outputs]
-  file_base = outputs/w02_eccentric_compression
+  file_base = outputs/aac_wall_tests/w02_eccentric_compression
   exodus = true
   csv = true
 []

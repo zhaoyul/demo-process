@@ -130,10 +130,9 @@
 []
 
 [Outputs]
-  file_base = outputs/aac_splitting_tension_100mm
+  file_base = outputs/aac_material_tests/aac_splitting_tension_100mm
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]
