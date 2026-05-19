@@ -45,9 +45,9 @@
   []
 []
 
-[Kernels]
-  [TensorMechanics]
-    displacements = 'disp_x disp_y'
+[Physics/SolidMechanics/QuasiStatic]
+  [all]
+    generate_output = 'stress_yy'
   []
 []
 

@@ -49,9 +49,8 @@
   []
 []
 
-[Kernels]
-  [TensorMechanics]
-    displacements = 'disp_x disp_y'
+[Physics/SolidMechanics/QuasiStatic]
+  [all]
   []
 []
 
