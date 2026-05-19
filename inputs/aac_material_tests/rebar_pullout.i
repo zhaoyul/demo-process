@@ -40,9 +40,9 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
-    generate_output = 'stress_yy'
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y'
   []
 []
 
@@ -93,7 +93,7 @@
     poissons_ratio = 0.30
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -126,7 +126,6 @@
   file_base = outputs/rebar_pullout
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]
@@ -146,3 +145,15 @@
     point = '0.0025 0.25 0.0'
   []
 []
+  [stress_yy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_yy_kernel]
+    type = RankTwoAux
+    variable = stress_yy
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []

@@ -61,9 +61,9 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
-    generate_output = 'stress_xy'
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y'
   []
 []
 
@@ -174,7 +174,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -207,7 +207,6 @@
   file_base = outputs/w09_hinged_pseudo_static
   exodus = true
   csv = true
-  interval = 10
 []
 
 [Postprocessors]
@@ -244,3 +243,15 @@
     variable = damage_total
   []
 ]
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []

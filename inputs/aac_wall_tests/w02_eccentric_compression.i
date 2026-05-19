@@ -54,8 +54,9 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y'
   []
 []
 
@@ -147,7 +148,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress

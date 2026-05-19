@@ -50,11 +50,15 @@
     order = CONSTANT
     family = MONOMIAL
   []
+  [stress_zz]
+    order = CONSTANT
+    family = MONOMIAL
+  []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
-    generate_output = 'stress_zz'
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y disp_z'
   []
 []
 
@@ -111,6 +115,14 @@
     scalar_type = MinPrincipal
     execute_on = 'TIMESTEP_END'
   []
+  [stress_zz_kernel]
+    type = RankTwoAux
+    variable = stress_zz
+    rank_two_tensor = stress
+    index_i = 2
+    index_j = 2
+    execute_on = 'TIMESTEP_END'
+  []
 []
 
 [Materials]
@@ -120,7 +132,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
     type = ComputeMultipleInelasticStress
@@ -164,7 +176,6 @@
   file_base = outputs/aac_compression_100mm
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]

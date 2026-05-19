@@ -49,9 +49,9 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
-    generate_output = 'stress_xy'
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y disp_z'
   []
 []
 
@@ -117,7 +117,7 @@
     poissons_ratio = 0.20
   []
   [aac_strain]
-    type = ComputeIncrementalSmallStrain
+    type = ComputeIncrementalStrain
   []
   [aac_stress]
     type = ComputeFiniteStrainElasticStress
@@ -144,7 +144,6 @@
   file_base = outputs/joint_grout_shear
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]
@@ -163,3 +162,15 @@
     variable = shear_stress_xy
   []
 []
+  [stress_xy]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [stress_xy_kernel]
+    type = RankTwoAux
+    variable = stress_xy
+    rank_two_tensor = stress
+    index_i = 0
+    index_j = 1
+    execute_on = 'TIMESTEP_END'
+  []

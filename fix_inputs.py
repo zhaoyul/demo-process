@@ -1,118 +1,102 @@
 #!/usr/bin/env python3
-"""Fix MOOSE input files: add missing stress aux variables for postprocessors.
-Keeps existing [Kernels] block (deprecation is just a warning, not error).
+"""Minimal fix: add missing stress aux variables for Postprocessors.
+Does NOT touch the [Kernels] block.
 """
-import re, os
+import os, re
 
 INPUT_DIRS = [
     "inputs/aac_material_tests",
     "inputs/aac_wall_tests",
 ]
 
+IDX_MAP = {
+    'stress_xx': (0, 0), 'stress_xy': (0, 1), 'stress_xz': (0, 2),
+    'stress_yx': (1, 0), 'stress_yy': (1, 1), 'stress_yz': (1, 2),
+    'stress_zx': (2, 0), 'stress_zy': (2, 1), 'stress_zz': (2, 2),
+}
+
+def find_block(lines, name, start=0):
+    for i in range(start, len(lines)):
+        if lines[i].strip() == f'[{name}]':
+            depth = 1
+            j = i + 1
+            while j < len(lines) and depth > 0:
+                s = lines[j].strip()
+                if s.startswith('[') and not s.startswith('[./') and not s.startswith('[../'):
+                    depth += 1
+                elif s == '[]' or s == '[../]':
+                    depth -= 1
+                j += 1
+            return (i, j - 1)
+    return None
+
+def extract_block_vars(lines, block_range):
+    start, end = block_range
+    vars = set()
+    for i in range(start + 1, end):
+        s = lines[i].strip()
+        if s.startswith('[') and not s.startswith('[./'):
+            name = s[1:-1].strip()
+            if name:
+                vars.add(name)
+    return vars
+
 def fix_file(path):
     with open(path, 'r') as f:
-        content = f.read()
+        lines = f.read().split('\n')
 
-    restored = False
-    # 1. Restore [Kernels] if we previously replaced it with [Physics]
-    if '[Physics/SolidMechanics/QuasiStatic]' in content:
-        dim = 2 if 'disp_z' not in content else 3
-        if dim == 3:
-            old_kernels = """[Kernels]
-  [TensorMechanics]
-    displacements = 'disp_x disp_y disp_z'
-  []
-[]"""
-        else:
-            old_kernels = """[Kernels]
-  [TensorMechanics]
-    displacements = 'disp_x disp_y'
-  []
-[]"""
-        content = re.sub(
-            r'\[Physics/SolidMechanics/QuasiStatic\].*?\n\[\]',
-            old_kernels,
-            content,
-            flags=re.DOTALL
-        )
-        print(f"  Restored Kernels in {os.path.basename(path)}")
-        restored = True
-
-    # 2. Find which stress vars are used in Postprocessors but not defined as AuxVariables
+    # Find which stress vars are referenced in Postprocessors
     pp_stress_vars = set()
-    for m in re.finditer(r"variable\s*=\s*['\"]?(stress_\w+)['\"]?", content):
-        pp_stress_vars.add(m.group(1))
+    for line in lines:
+        m = re.match(r"\s*variable\s*=\s*['\"]?(stress_\w+)['\"]?", line.strip())
+        if m:
+            pp_stress_vars.add(m.group(1))
 
-    # Find which are already defined as AuxVariables
-    existing_vars = set()
-    for m in re.finditer(r'\[AuxVariables\].*?\n\[\]', content, flags=re.DOTALL):
-        aux_block = m.group(0)
-        for vm in re.finditer(r'\[\s*(stress_\w+)\s*\]', aux_block):
-            existing_vars.add(vm.group(1))
+    if not pp_stress_vars:
+        return  # nothing needed
 
-    missing = pp_stress_vars - existing_vars
-    if not missing and restored:
-        return
-    if not missing and not restored:
-        print(f"  OK: {os.path.basename(path)}")
+    # Find existing AuxVariables
+    aux_block = find_block(lines, 'AuxVariables')
+    if not aux_block:
+        print(f"  WARN: {os.path.basename(path)} has no [AuxVariables]")
         return
 
-    # 3. Add missing stress vars as AuxVariables
-    for sv in sorted(missing):
-        # Insert before the first closing [] of AuxVariables, or before [AuxKernels]
-        aux_var_entry = f"""  [{sv}]
-    order = CONSTANT
-    family = MONOMIAL
-  []"""
-        # Find [AuxVariables] block
-        aux_match = re.search(r'\[AuxVariables\].*?\n\[\]', content, flags=re.DOTALL)
-        if aux_match:
-            # Insert before final []
-            end_pos = aux_match.end() - 2  # before \n[]
-            content = content[:end_pos] + '\n' + aux_var_entry + content[end_pos:]
-        else:
-            # No AuxVariables block - create one
-            print(f"  WARNING: No AuxVariables block in {os.path.basename(path)}, cannot add {sv}")
-            continue
+    existing_aux = extract_block_vars(lines, aux_block)
+    missing = pp_stress_vars - existing_aux
+    if not missing:
+        return  # all defined
 
-    # 4. Add RankTwoAux kernels for missing stress vars
-    # Determine index_i, index_j for each component
-    idx_map = {
-        'stress_xx': (0, 0), 'stress_xy': (0, 1), 'stress_xz': (0, 2),
-        'stress_yx': (1, 0), 'stress_yy': (1, 1), 'stress_yz': (1, 2),
-        'stress_zx': (2, 0), 'stress_zy': (2, 1), 'stress_zz': (2, 2),
-    }
+    auxk_block = find_block(lines, 'AuxKernels')
+    if not auxk_block:
+        print(f"  WARN: {os.path.basename(path)} has no [AuxKernels]")
+        return
+
+    # Insert AuxVariable entries just before the closing [] of AuxVariables
+    # (aux_block[1] is the line index of the closing [])
+    insert_at = aux_block[1]
     for sv in sorted(missing):
-        if sv not in idx_map:
+        entry = f"  [{sv}]\n    order = CONSTANT\n    family = MONOMIAL\n  []"
+        lines.insert(insert_at, entry)
+        insert_at += 4
+
+    # Re-find blocks (indices shifted)
+    auxk_block = find_block(lines, 'AuxKernels')
+    insert_at = auxk_block[1]
+    for sv in sorted(missing):
+        if sv not in IDX_MAP:
             continue
-        ii, jj = idx_map[sv]
-        kernel_entry = f"""  [{sv}_kernel]
-    type = RankTwoAux
-    variable = {sv}
-    rank_two_tensor = stress
-    index_i = {ii}
-    index_j = {jj}
-    execute_on = 'TIMESTEP_END'
-  []"""
-        # Find [AuxKernels] block
-        auxk_match = re.search(r'\[AuxKernels\].*?\n\[\]', content, flags=re.DOTALL)
-        if auxk_match:
-            end_pos = auxk_match.end() - 2
-            content = content[:end_pos] + '\n' + kernel_entry + content[end_pos:]
-        else:
-            print(f"  WARNING: No AuxKernels in {os.path.basename(path)}")
+        ii, jj = IDX_MAP[sv]
+        entry = f"  [{sv}_kernel]\n    type = RankTwoAux\n    variable = {sv}\n    rank_two_tensor = stress\n    index_i = {ii}\n    index_j = {jj}\n    execute_on = 'TIMESTEP_END'\n  []"
+        lines.insert(insert_at, entry)
+        insert_at += 8
 
     with open(path, 'w') as f:
-        f.write(content)
+        f.write('\n'.join(lines))
     print(f"  Fixed: {os.path.basename(path)}  added={sorted(missing)}")
-
-# Restore all files first (git checkout)
-os.system("cd /home/kevin/gt/demo/polecats/chrome/demo && git checkout -- inputs/")
 
 for d in INPUT_DIRS:
     for f in sorted(os.listdir(d)):
         if f.endswith('.i'):
-            path = os.path.join(d, f)
-            fix_file(path)
+            fix_file(os.path.join(d, f))
 
 print("\nDone.")

@@ -43,9 +43,9 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  [all]
-    generate_output = 'stress_yy'
+[Kernels]
+  [TensorMechanics]
+    displacements = 'disp_x disp_y'
   []
 []
 
@@ -129,7 +129,6 @@
   file_base = outputs/aac_splitting_tension_150mm
   exodus = true
   csv = true
-  interval = 5
 []
 
 [Postprocessors]
