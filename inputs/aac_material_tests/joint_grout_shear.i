@@ -149,7 +149,7 @@
 [Postprocessors]
   [top_reaction_x]
     type = SideAverageValue
-    variable = stress_xy
+    variable = shear_stress_xy
     boundary = top
   []
   [top_disp_x]

@@ -34,7 +34,7 @@
     order = CONSTANT
     family = MONOMIAL
   []
-  [plastic_strain]
+  [stress_yy]
     order = CONSTANT
     family = MONOMIAL
   []
@@ -77,11 +77,12 @@
     scalar_type = VonMisesStress
     execute_on = 'TIMESTEP_END'
   []
-  [plastic_strain_kernel]
-    type = RankTwoScalarAux
-    variable = plastic_strain
-    rank_two_tensor = plastic_strain
-    scalar_type = EffectiveStrain
+  [stress_yy_aux]
+    type = RankTwoAux
+    variable = stress_yy
+    rank_two_tensor = stress
+    index_i = 1
+    index_j = 1
     execute_on = 'TIMESTEP_END'
   []
 []
