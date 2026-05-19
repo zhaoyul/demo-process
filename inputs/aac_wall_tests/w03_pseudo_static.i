@@ -107,36 +107,10 @@
 []
 
 [Functions]
-  # 拟静力循环加载函数 (JGJ/T 101-2015)
-  # 各阶段: [时间范围, 位移幅值mm, 循环数]
-  #   Phase1: t=0~40s,  Δ=±6.55mm,  1 cycles
-  #   Phase2: t=40~80s,  Δ=±9.0mm,   1 cycles
-  #   Phase3: t=80~160s, Δ=±14.4mm,  1 cycles
-  #   Phase4: t=160~280s,Δ=±24.0mm,  3 cycles
-  #   Phase5: t=280~400s,Δ=±30.0mm,  3 cycles
-  # 每个 phase 使用三角波 (ramp up → ramp down)
+  # 拟静力循环加载 — 全内联，不引用其他函数
   [cyclic_loading]
     type = ParsedFunction
-    expression = 'cyclic_amp(t) * tri_wave(t, period(t))'
-    symbol_names = 'cyclic_amp tri_wave period'
-    symbol_values = 'cyclic_amplitude triangular_wave phase_period'
-  []
-  [cyclic_amplitude]
-    type = ParsedFunction
-    # 分阶段增加位移幅值 (单位: m)
-    expression = 'if(t<40, 0.00655, if(t<80, 0.0090, if(t<160, 0.0144, if(t<280, 0.0240, 0.0300))))'
-  []
-  [triangular_wave]
-    type = ParsedFunction
-    # 三角波: -1 到 +1, cycle_seconds 为周期参数
-    expression = '2 * abs(2 * (t / cycle_period - floor(t / cycle_period + 0.5))) - 1'
-    symbol_names = 'cycle_period'
-    symbol_values = 'phase_period'
-  []
-  [phase_period]
-    type = ParsedFunction
-    # 各阶段周期长度 (每循环秒数)
-    expression = 'if(t<40, 40, if(t<80, 40, if(t<160, 80, if(t<280, 40, 40))))'
+    expression = 'if(t<40, 0.00655*sin(2*pi*t/40-pi/2), if(t<80, 0.0090*sin(2*pi*(t-40)/40-pi/2), if(t<160, 0.0144*sin(2*pi*(t-80)/80-pi/2), if(t<280, 0.0240*sin(2*pi*(t-160)/40-pi/2), 0.0300*sin(2*pi*(t-280)/40-pi/2)))))'
   []
 []
 
