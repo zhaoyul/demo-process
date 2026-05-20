@@ -24,6 +24,11 @@
 []
 
 [AuxVariables]
+
+  [damage_t]
+    order = CONSTANT
+    family = MONOMIAL
+  []
   [vonmises]
     order = CONSTANT
     family = MONOMIAL
@@ -69,11 +74,18 @@
 [Functions]
   [cyclic_loading]
     type = ParsedFunction
-    expression = 'if(t<40, 0.00655*sin(2*pi*t/40-pi/2), if(t<80, 0.0090*sin(2*pi*(t-40)/40-pi/2), 0.0144*sin(2*pi*(t-80)/80-pi/2)))'
+    expression = 'if(t<40, 0.00655*sin(2*pi*t/40-pi/2), if(t<80, 0.0090*sin(2*pi*(t-40)/40-pi/2), if(t<160, 0.0144*sin(2*pi*(t-80)/80-pi/2), 0.0240*sin(2*pi*(t-160)/40-pi/2))))'
   []
 []
 
 [AuxKernels]
+  [damage_kernel]
+    type = RankTwoScalarAux
+    variable = damage_t
+    rank_two_tensor = stress
+    scalar_type = MaxPrincipal
+    execute_on = TIMESTEP_END
+  []
   [vonmises]
     type = RankTwoScalarAux
     variable = vonmises
@@ -105,11 +117,15 @@
   [plasticity]
     type = IsotropicPlasticityStressUpdate
     yield_stress = 3.5e6
-    hardening_constant = 0.0
+    hardening_constant = -1.0e6
   []
 []
 
 [Postprocessors]
+  [damage_max]
+    type = ElementExtremeValue
+    variable = damage_t
+  []
   [top_disp_x]
     type = SideAverageValue
     variable = disp_x
@@ -133,12 +149,12 @@
   petsc_options_value = 'hypre boomeramg'
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
-  nl_max_its = 20
+  nl_max_its = 30
   line_search = bt
 
   start_time = 0.0
-  end_time = 160.0
-  dt = 5.0
+  end_time = 280.0
+  dt = 4.0
   dtmin = 0.1
 
   [TimeIntegrator]
