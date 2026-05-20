@@ -285,15 +285,15 @@ W-09 (铰接):
 
 | W-03 标准 | W-04 薄墙 | W-05 无格构 |
 |:---:|:---:|:---:|
-| [▶ aac_wall_fem_w03_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w03_pseudo_static.mp4)   | [▶ aac_wall_fem_w04_thin_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w04_thin_pseudo_static.mp4)   | [▶ aac_wall_fem_w05_no_lattice_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w05_no_lattice_pseudo_static.mp4)   |
+| ![w03 pseudo_static](renders/aac_wall_fem_w03_pseudo_static.gif)   | ![w04 thin_pseudo_static](renders/aac_wall_fem_w04_thin_pseudo_static.gif)   | ![w05 no_lattice_pseudo_static](renders/aac_wall_fem_w05_no_lattice_pseudo_static.gif)   |
 
 | W-06 大板 | W-07 构造柱 | W-08 窗洞 |
 |:---:|:---:|:---:|
-| [▶ aac_wall_fem_w06_large_plate_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w06_large_plate_pseudo_static.mp4)   | [▶ aac_wall_fem_w07_thin_column_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w07_thin_column_pseudo_static.mp4)   | [▶ aac_wall_fem_w08_window_opening_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w08_window_opening_pseudo_static.mp4)   |
+| ![w06 large_plate_pseudo_static](renders/aac_wall_fem_w06_large_plate_pseudo_static.gif)   | ![w07 thin_column_pseudo_static](renders/aac_wall_fem_w07_thin_column_pseudo_static.gif)   | ![w08 window_opening_pseudo_static](renders/aac_wall_fem_w08_window_opening_pseudo_static.gif)   |
 
 | W-09 铰接 |
 |:---:|
-| [▶ aac_wall_fem_w09_hinged_pseudo_static.mp4](https://github.com/zhaoyul/demo-process/blob/main/renders/aac_wall_fem_w09_hinged_pseudo_static.mp4)   |
+| ![w09 hinged_pseudo_static](renders/aac_wall_fem_w09_hinged_pseudo_static.gif)   |
 
 ---
 
