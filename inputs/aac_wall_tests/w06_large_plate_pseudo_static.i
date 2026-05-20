@@ -65,7 +65,7 @@
   []
   [top_pressure]
     type = ADPressure
-    variable = disp_y
+    component = 1
     boundary = top
     factor = -0.5e6
   []
