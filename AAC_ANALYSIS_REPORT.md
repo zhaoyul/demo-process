@@ -200,6 +200,10 @@ W-09 (铰接):
 | 6 | W-04 | 550.8 | 2.49 | 3 | ★★★☆☆ | 可接受 (薄墙需注意平面外) |
 | 7 | W-05 | 543.5 | 2.53 | 3 | ★☆☆☆☆ | 不推荐 (无格构, 脆性破坏) ⚠️ |
 
+**性能对比图表:**
+
+![性能柱状图](renders/aac_comparison_bars.png)
+
 ### 3.5 关键发现 (FEM vs 预期)
 
 | 对比项 | 预期趋势 | FEM 实测 | 吻合度 |
@@ -251,33 +255,45 @@ W-09 (铰接):
 - `.csv`: 时间序列数据 (Python后处理)
 - 后处理脚本: `aac_postprocess.py` (文本分析), `aac_render.py` (图表渲染)
 
-### 5.4 渲染输出 (已完成)
+### 5.4 渲染输出
 
-后处理图表已生成至 `renders/` 目录:
+#### 滞回曲线
 
-**滞回曲线 (每试件一张):**
-- `renders/aac_hysteresis_w03.png` — W-03 标准格构
-- `renders/aac_hysteresis_w04.png` — W-04 薄墙
-- `renders/aac_hysteresis_w05.png` — W-05 无格构
-- `renders/aac_hysteresis_w06.png` — W-06 大板
-- `renders/aac_hysteresis_w07.png` — W-07 薄墙+构造柱
-- `renders/aac_hysteresis_w08.png` — W-08 窗洞+构造柱
-- `renders/aac_hysteresis_w09.png` — W-09 铰接
+| W-03 标准格构 | W-04 薄墙 | W-05 无格构 |
+|:---:|:---:|:---:|
+| ![W-03](renders/aac_hysteresis_w03.png) | ![W-04](renders/aac_hysteresis_w04.png) | ![W-05](renders/aac_hysteresis_w05.png) |
 
-**对比图表:**
-- `renders/aac_comparison_skeleton.png` — 骨架曲线对比
-- `renders/aac_comparison_stiffness.png` — 刚度退化对比
-- `renders/aac_comparison_energy.png` — 累积耗能对比
-- `renders/aac_comparison_bars.png` — 峰值力+耗能柱状图
+| W-06 大板 | W-07 构造柱 | W-08 窗洞 |
+|:---:|:---:|:---:|
+| ![W-06](renders/aac_hysteresis_w06.png) | ![W-07](renders/aac_hysteresis_w07.png) | ![W-08](renders/aac_hysteresis_w08.png) |
 
-**墙体变形动画 (位移历程):**
-- `renders/aac_wall_w03.mp4` — W-03 标准格构 变形动画
-- `renders/aac_wall_w04.mp4` — W-04 薄墙 变形动画
-- `renders/aac_wall_w05.mp4` — W-05 无格构 变形动画
-- `renders/aac_wall_w06.mp4` — W-06 大板 变形动画
-- `renders/aac_wall_w07.mp4` — W-07 构造柱 变形动画
-- `renders/aac_wall_w08.mp4` — W-08 窗洞 变形动画
-- `renders/aac_wall_w09.mp4` — W-09 铰接 变形动画
+| W-09 铰接 |
+|:---:|
+| ![W-09](renders/aac_hysteresis_w09.png) |
+
+#### 对比图表
+
+| 骨架曲线 | 刚度退化 |
+|:---:|:---:|
+| ![骨架](renders/aac_comparison_skeleton.png) | ![刚度](renders/aac_comparison_stiffness.png) |
+
+| 累积耗能 | 峰值力+耗能 |
+|:---:|:---:|
+| ![耗能](renders/aac_comparison_energy.png) | ![柱状图](renders/aac_comparison_bars.png) |
+
+#### FEM 变形动画 (von Mises 应力着色)
+
+| W-03 标准 | W-04 薄墙 | W-05 无格构 |
+|:---:|:---:|:---:|
+| <video src="renders/aac_wall_fem_w03_pseudo_static.mp4" controls width="100%"></video> | <video src="renders/aac_wall_fem_w04_thin_pseudo_static.mp4" controls width="100%"></video> | <video src="renders/aac_wall_fem_w05_no_lattice_pseudo_static.mp4" controls width="100%"></video> |
+
+| W-06 大板 | W-07 构造柱 | W-08 窗洞 |
+|:---:|:---:|:---:|
+| <video src="renders/aac_wall_fem_w06_large_plate_pseudo_static.mp4" controls width="100%"></video> | <video src="renders/aac_wall_fem_w07_thin_column_pseudo_static.mp4" controls width="100%"></video> | <video src="renders/aac_wall_fem_w08_window_opening_pseudo_static.mp4" controls width="100%"></video> |
+
+| W-09 铰接 |
+|:---:|
+| <video src="renders/aac_wall_fem_w09_hinged_pseudo_static.mp4" controls width="100%"></video> |
 
 ---
 
