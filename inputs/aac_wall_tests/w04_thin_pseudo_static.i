@@ -101,8 +101,8 @@
   []
   [stress]
     type = ADComputeSmearedCrackingStress
-    cracking_stress = 0.5e6
-    cracking_neg_fraction = 0.2
+    cracking_stress = 5.0e6
+    cracking_neg_fraction = 0.0
     shear_retention_factor = 0.1
     cracked_elasticity_type = FULL
     softening_models = 'exponential_softening'
@@ -139,6 +139,7 @@
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
   nl_max_its = 50
+  line_search = bt
 
   start_time = 0.0
   end_time = 280.0
