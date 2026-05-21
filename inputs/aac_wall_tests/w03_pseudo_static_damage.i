@@ -1,11 +1,5 @@
 # AAC Wall Pseudo-Static Test — W03 Standard (3600x3600x240)
-# Scalar Damage Model (方案1) — ComputeDamageStress + ScalarMaterialDamage
-# 对比方案: 双倍软化塑性模型 (方案2, w03_pseudo_static.i)
-#
-# 本构: ComputeIsotropicElasticityTensor + ComputeFiniteStrain
-#       + ScalarMaterialDamage + ComputeDamageStress
-# 损伤演化: PiecewiseLinear 函数，损伤随加载时间增长
-# 关键参数: maximum_damage_increment=0.05 (限制单步损伤增量)
+# Scalar Damage Model — ComputeDamageStress + ScalarMaterialDamage
 
 [Mesh]
   type = GeneratedMesh
@@ -41,7 +35,6 @@
   [damage_index]
     order = CONSTANT
     family = MONOMIAL
-    initial_condition = 0.0
   []
 []
 
@@ -115,7 +108,7 @@
   [damage_index_aux]
     type = MaterialRealAux
     variable = damage_index
-    property = damage_index_prop
+    property = damage_index
     execute_on = TIMESTEP_END
   []
 []
