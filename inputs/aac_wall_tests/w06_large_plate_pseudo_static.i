@@ -1,5 +1,5 @@
-# AAC Wall Pseudo-Static Test — W03 Standard (3600x3600x240)
-# Smeared cracking model, 3-phase cyclic loading, AD formulation
+# AAC Wall Pseudo-Static Test — W04 Thin (3600x3600x200)
+# Tuned isotropic plasticity with strong softening for realistic AAC hysteresis
 
 [Mesh]
   type = GeneratedMesh
@@ -24,10 +24,6 @@
 []
 
 [AuxVariables]
-  [damage_index]
-    order = CONSTANT
-    family = MONOMIAL
-  []
   [vonmises]
     order = CONSTANT
     family = MONOMIAL
@@ -38,33 +34,33 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  add_variables = true
-  strain = SMALL
-  generate_output = 'stress_xx stress_xy stress_yy vonmises_stress'
+[Kernels]
+  [TensorMechanics]
+  []
 []
 
 [BCs]
   [bottom_x]
-    type = ADDirichletBC
+    type = DirichletBC
     variable = disp_x
     boundary = bottom
     value = 0.0
   []
   [bottom_y]
-    type = ADDirichletBC
+    type = DirichletBC
     variable = disp_y
     boundary = bottom
     value = 0.0
   []
   [top_x]
-    type = ADFunctionDirichletBC
+    type = FunctionDirichletBC
     variable = disp_x
     boundary = top
     function = cyclic_loading
   []
   [top_pressure]
-    type = ADPressure
+    type = Pressure
+    variable = disp_y
     component = 1
     boundary = top
     factor = -0.5e6
@@ -79,56 +75,44 @@
 []
 
 [AuxKernels]
-  [damage_kernel]
-    type = ADMaterialRealAux
-    variable = damage_index
-    property = damage_index
-    execute_on = TIMESTEP_END
-  []
   [vonmises]
-    type = ADRankTwoScalarAux
+    type = RankTwoScalarAux
     variable = vonmises
     rank_two_tensor = stress
     scalar_type = VonMisesStress
+    execute_on = TIMESTEP_END
   []
   [stress_xy]
-    type = ADRankTwoAux
+    type = RankTwoAux
     variable = stress_xy
     rank_two_tensor = stress
     index_i = 0
     index_j = 1
+    execute_on = TIMESTEP_END
   []
 []
 
 [Materials]
   [elasticity]
-    type = ADComputeIsotropicElasticityTensor
+    type = ComputeIsotropicElasticityTensor
     youngs_modulus = 1.75e9
     poissons_ratio = 0.20
   []
   [strain]
-    type = ADComputeSmallStrain
+    type = ComputeIncrementalStrain
   []
   [stress]
-    type = ADComputeSmearedCrackingStress
-    cracking_stress = 0.5e6
-    cracking_neg_fraction = 0.2
-    shear_retention_factor = 0.1
-    cracked_elasticity_type = FULL
-    softening_models = 'exponential_softening'
+    type = ComputeMultipleInelasticStress
+    inelastic_models = 'plasticity'
   []
-  [exponential_softening]
-    type = ADExponentialSoftening
-    residual_stress = 1.0e4
-    alpha = 0.5
+  [plasticity]
+    type = IsotropicPlasticityStressUpdate
+    yield_stress = 3.5e6
+    hardening_constant = -2.0e6
   []
 []
 
 [Postprocessors]
-  [damage_max]
-    type = ElementExtremeValue
-    variable = damage_index
-  []
   [top_disp_x]
     type = SideAverageValue
     variable = disp_x
@@ -147,9 +131,9 @@
 
 [Executioner]
   type = Transient
-  solve_type = 'NEWTON'
-  petsc_options_iname = '-pc_type -pc_factor_mat_solver_package'
-  petsc_options_value = 'lu superlu_dist'
+  solve_type = 'PJFNK'
+  petsc_options_iname = '-pc_type -pc_hypre_type'
+  petsc_options_value = 'hypre boomeramg'
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
   nl_max_its = 30
