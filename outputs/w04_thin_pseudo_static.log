@@ -1,312 +1,35 @@
 
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   _   _                       _                               ║
-║  | | | | ___  _ __   __ _ ___| |__  _   _  __ _ _ __   ___  ║
-║  | |_| |/ _ \| '_ \ / _` / __| '_ \| | | |/ _` | '_ \ / _ \ ║
-║  |  _  | (_) | | | | (_| \__ \ | | | |_| | (_| | | | |  __/ ║
-║  |_| |_|\___/|_| |_|\__, |___/_| |_|\__,_|\__,_|_| |_|\___| ║
-║                     |___/                                     ║
-║                                                              ║
-║    红创科技多物理场仿真引擎 (核心模块) V1.0                     ║
-║    基于 MOOSE 多物理场面向对象仿真环境                         ║
-║    © 2026 红创科技 (Hongchuang Tech)                          ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
+[33m
+*** Warning ***
+/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41.1:
+The following occurred in the Action 'QuasiStatic' of type CommonSolidMechanicsAction.
 
+Common parameters are supplied, but not used in /home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41[39m
 
 [33m
-*** Deprecation Warning ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:67.3: The 'Kernels/TensorMechanics' syntax is deprecated. Please use 'Physics/SolidMechanics/QuasiStatic' instead.[39m
-Stack frames: 14
-0: libMesh::print_trace(std::ostream&)
-1: void moose::internal::mooseDeprecatedStream<libMesh::BasicOStreamProxy<char, std::char_traits<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(libMesh::BasicOStreamProxy<char, std::char_traits<char> >&, bool, bool, bool, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
-2: Moose::Builder::walkRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, hit::Node*)
-3: Moose::Builder::walk(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node*)
-4: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-5: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-6: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-7: Moose::Builder::build()
-8: MooseApp::setupOptions()
-9: MooseApp::run()
-10: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x561ff45bd0f2]
-11: /lib/libc.so.6(+0x27741) [0x7fd600827741]
-12: __libc_start_main
-13: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x561ff45bd365]
+*** Warning ***
+/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41.1:
+The following occurred in the Action 'QuasiStatic' of type CommonSolidMechanicsAction.
 
-
-[36m
-*** Info ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:67.3:
-The following occurred in the Action 'TensorMechanics' of type LegacyTensorMechanicsAction.
-
-SolidMechanics Action: selecting 'total small strain' formulation. Use `incremental = true` to select 'incremental small strain' instead.[39m
-sh: line 1: mpicxx: command not found
-JIT compile failed.
-sh: line 1: mpicxx: command not found
-JIT compile failed.
-sh: line 1: mpicxx: command not found
-JIT compile failed.
-Framework Information:
-MOOSE Version:           git commit dd5a8961 on 2026-05-01
-LibMesh Version:         
-PETSc Version:           3.24.6
-SLEPc Version:           3.24.0
-Current Time:            Tue May 19 17:45:12 2026
-Executable Timestamp:    Wed May 13 15:08:44 2026
-
-Input File(s):
-  /home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i
-
-Checkpoint:
-  Wall Time Interval:      Every 3600 s
-  User Checkpoint:         Disabled
-  # Checkpoints Kept:      2
-  Execute On:              TIMESTEP_END 
-
-Parallelism:
-  Num Processors:          1
-  Num Threads:             1
-
-Mesh: 
-  Parallel Type:           replicated
-  Mesh Dimension:          2
-  Spatial Dimension:       2
-  Nodes:                   5329
-  Elems:                   5184
-  Num Subdomains:          1
-
-Nonlinear System:
-  Num DOFs:                10658
-  Num Local DOFs:          10658
-  Variables:               { "disp_x" "disp_y" } 
-  Finite Element Types:    "LAGRANGE" 
-  Approximation Orders:    "FIRST" 
-
-Auxiliary System:
-  Num DOFs:                36288
-  Num Local DOFs:          36288
-  Variables:               { "vonmises" "max_princ" "min_princ" "damage_t" "damage_c" "damage_total" 
-                             "stress_xy" } 
-  Finite Element Types:    "MONOMIAL" 
-  Approximation Orders:    "CONSTANT" 
-
-Execution Information:
-  Executioner:             Transient
-  TimeStepper:             ConstantDT
-  TimeIntegrator(s):       ImplicitEuler
-  Solver Mode:             Preconditioned JFNK 
-  PETSc Preconditioner:    hypre boomeramg 
-
-libMesh terminating:
-ERROR: FunctionParser is unable to parse expression: amp(t) * (2 * abs(2 * (t / per - floor(t / per + 0.5))) - 1)
-Syntax error: Operator expected
-Stack frames: 16
-0: libMesh::print_trace(std::ostream&)
-1: libMesh::MacroFunctions::report_error(char const*, int, char const*, char const*, std::ostream&)
-2: /home/kevin/gt/demo/mayor/rig/build/moose/framework/libmoose-opt.so.0(+0x138a985) [0x7fd616b8a985]
-3: /home/kevin/gt/demo/mayor/rig/build/moose/framework/libmoose-opt.so.0(+0x138b001) [0x7fd616b8b001]
-4: /home/kevin/gt/demo/mayor/rig/build/moose/framework/libmoose-opt.so.0(+0x138b788) [0x7fd616b8b788]
-5: MooseParsedFunctionWrapper::MooseParsedFunctionWrapper(FEProblemBase&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&, unsigned int)
-6: MooseParsedFunction::initialSetup()
-7: FEProblemBase::initialSetup()
-8: TransientBase::init()
-9: Transient::init()
-10: MooseApp::executeExecutioner()
-11: MooseApp::run()
-12: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x561ff45bd0f2]
-13: /lib/libc.so.6(+0x27741) [0x7fd600827741]
-14: __libc_start_main
-15: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x561ff45bd365]
-[0] /home/kevin/miniforge3/envs/moose/include/libmesh/parsed_function.h, line 564, compiled May  1 2026 at 13:04:37
-
-Abort(1) on node 0 (rank 0 in comm 0): application called MPI_Abort(MPI_COMM_WORLD, 1) - process 0
-
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   _   _                       _                               ║
-║  | | | | ___  _ __   __ _ ___| |__  _   _  __ _ _ __   ___  ║
-║  | |_| |/ _ \| '_ \ / _` / __| '_ \| | | |/ _` | '_ \ / _ \ ║
-║  |  _  | (_) | | | | (_| \__ \ | | | |_| | (_| | | | |  __/ ║
-║  |_| |_|\___/|_| |_|\__, |___/_| |_|\__,_|\__,_|_| |_|\___| ║
-║                     |___/                                     ║
-║                                                              ║
-║    红创科技多物理场仿真引擎 (核心模块) V1.0                     ║
-║    基于 MOOSE 多物理场面向对象仿真环境                         ║
-║    © 2026 红创科技 (Hongchuang Tech)                          ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-
-
-[33m
-*** Deprecation Warning ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:53.3: The 'Kernels/TensorMechanics' syntax is deprecated. Please use 'Physics/SolidMechanics/QuasiStatic' instead.[39m
-Stack frames: 14
-0: libMesh::print_trace(std::ostream&)
-1: void moose::internal::mooseDeprecatedStream<libMesh::BasicOStreamProxy<char, std::char_traits<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(libMesh::BasicOStreamProxy<char, std::char_traits<char> >&, bool, bool, bool, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
-2: Moose::Builder::walkRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, hit::Node*)
-3: Moose::Builder::walk(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node*)
-4: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-5: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-6: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-7: Moose::Builder::build()
-8: MooseApp::setupOptions()
-9: MooseApp::run()
-10: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x55f8520a60f2]
-11: /lib/libc.so.6(+0x27741) [0x7f6ff8027741]
-12: __libc_start_main
-13: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x55f8520a6365]
-
-
-[36m
-*** Info ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:53.3:
-The following occurred in the Action 'TensorMechanics' of type LegacyTensorMechanicsAction.
-
-SolidMechanics Action: selecting 'total small strain' formulation. Use `incremental = true` to select 'incremental small strain' instead.[39m
-sh: line 1: mpicxx: command not found
-JIT compile failed.
-Framework Information:
-MOOSE Version:           git commit dd5a8961 on 2026-05-01
-LibMesh Version:         
-PETSc Version:           3.24.6
-SLEPc Version:           3.24.0
-Current Time:            Tue May 19 19:04:35 2026
-Executable Timestamp:    Wed May 13 15:08:44 2026
-
-Input File(s):
-  /home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i
-
-Checkpoint:
-  Wall Time Interval:      Every 3600 s
-  User Checkpoint:         Disabled
-  # Checkpoints Kept:      2
-  Execute On:              TIMESTEP_END 
-
-Parallelism:
-  Num Processors:          1
-  Num Threads:             1
-
-Mesh: 
-  Parallel Type:           replicated
-  Mesh Dimension:          2
-  Spatial Dimension:       2
-  Nodes:                   5329
-  Elems:                   5184
-  Num Subdomains:          1
-
-Nonlinear System:
-  Num DOFs:                10658
-  Num Local DOFs:          10658
-  Variables:               { "disp_x" "disp_y" } 
-  Finite Element Types:    "LAGRANGE" 
-  Approximation Orders:    "FIRST" 
-
-Auxiliary System:
-  Num DOFs:                20736
-  Num Local DOFs:          20736
-  Variables:               { "vonmises" "max_princ" "min_princ" "damage_c" } 
-  Finite Element Types:    "MONOMIAL" 
-  Approximation Orders:    "CONSTANT" 
-
-Execution Information:
-  Executioner:             Steady
-  Solver Mode:             Preconditioned JFNK 
-  PETSc Preconditioner:    hypre boomeramg 
-
-
-Postprocessor Values:
-+----------------+----------------+----------------+----------------+----------------+
-| time           | damage_c_max   | mid_stress_yy  | top_disp_y     | vonmises_max   |
-+----------------+----------------+----------------+----------------+----------------+
-|   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |
-+----------------+----------------+----------------+----------------+----------------+
-
- 0 Nonlinear |R| = [32m0.000000e+00[39m
-[32m Solve Converged![39m
-
-Postprocessor Values:
-+----------------+----------------+----------------+----------------+----------------+
-| time           | damage_c_max   | mid_stress_yy  | top_disp_y     | vonmises_max   |
-+----------------+----------------+----------------+----------------+----------------+
-|   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |
-|   1.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |   0.000000e+00 |
-+----------------+----------------+----------------+----------------+----------------+
-
-
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   _   _                       _                               ║
-║  | | | | ___  _ __   __ _ ___| |__  _   _  __ _ _ __   ___  ║
-║  | |_| |/ _ \| '_ \ / _` / __| '_ \| | | |/ _` | '_ \ / _ \ ║
-║  |  _  | (_) | | | | (_| \__ \ | | | |_| | (_| | | | |  __/ ║
-║  |_| |_|\___/|_| |_|\__, |___/_| |_|\__,_|\__,_|_| |_|\___| ║
-║                     |___/                                     ║
-║                                                              ║
-║    红创科技多物理场仿真引擎 (核心模块) V1.0                     ║
-║    基于 MOOSE 多物理场面向对象仿真环境                         ║
-║    © 2026 红创科技 (Hongchuang Tech)                          ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-
-
-[33m
-*** Deprecation Warning ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:53.3: The 'Kernels/TensorMechanics' syntax is deprecated. Please use 'Physics/SolidMechanics/QuasiStatic' instead.[39m
-Stack frames: 14
-0: libMesh::print_trace(std::ostream&)
-1: void moose::internal::mooseDeprecatedStream<libMesh::BasicOStreamProxy<char, std::char_traits<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(libMesh::BasicOStreamProxy<char, std::char_traits<char> >&, bool, bool, bool, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
-2: Moose::Builder::walkRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, hit::Node*)
-3: Moose::Builder::walk(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node*)
-4: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-5: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-6: hit::Node::walk(hit::Walker*, hit::NodeType, hit::TraversalOrder)
-7: Moose::Builder::build()
-8: MooseApp::setupOptions()
-9: MooseApp::run()
-10: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x5635b35ff0f2]
-11: /lib/libc.so.6(+0x27741) [0x7f78e8827741]
-12: __libc_start_main
-13: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x5635b35ff365]
-
-
-[36m
-*** Info ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:53.3:
-The following occurred in the Action 'TensorMechanics' of type LegacyTensorMechanicsAction.
-
-SolidMechanics Action: selecting 'total small strain' formulation. Use `incremental = true` to select 'incremental small strain' instead.[39m
-sh: line 1: mpicxx: command not found
-JIT compile failed.
+Common parameters are supplied, but not used in /home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41[39m
 
 [31m
 *** ERROR ***
-/home/kevin/gt/demo/mayor/rig/inputs/aac_wall_tests/w04_thin_pseudo_static.i:60.3:
-The following occurred in the BoundaryCondition 'bottom_x' of type DirichletBC.
+Each subdomain must contain at least one Kernel.
+The following block(s) lack an active kernel:   (ids: 0 )[39m
 
-missing required parameter 'BCs/bottom_x/value'
-	Doc String: "Value of the BC"[39m
-
-Stack frames: 21
+Stack frames: 13
 0: libMesh::print_trace(std::ostream&)
 1: moose::internal::mooseErrorRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node const*, bool)
-2: MooseBase::callMooseError(MooseApp*, InputParameters const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, hit::Node const*, bool)
-3: InputParameters::callMooseError(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, hit::Node const*, bool) const
-4: void InputParameters::mooseError<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&) const
-5: InputParameters::checkParams(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
-6: InputParameters::finalize(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
-7: Factory::initialize(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int)
-8: std::shared_ptr<MooseObject> Factory::createTempl<std::shared_ptr<MooseObject> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int, std::optional<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&)
-9: Factory::create(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int, bool)
-10: std::shared_ptr<BoundaryCondition> Factory::create<BoundaryCondition>(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters const&, unsigned int)
-11: NonlinearSystemBase::addBoundaryCondition(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, InputParameters&)
-12: Action::timedAct()
-13: ActionWarehouse::executeActionsWithAction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
-14: ActionWarehouse::executeAllActions()
-15: MooseApp::runInputFile()
-16: MooseApp::run()
-17: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x5635b35ff0f2]
-18: /lib/libc.so.6(+0x27741) [0x7f78e8827741]
-19: __libc_start_main
-20: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x5635b35ff365]
+2: NonlinearSystemBase::checkKernelCoverage(std::set<unsigned short, std::less<unsigned short>, std::allocator<unsigned short> > const&) const
+3: FEProblemBase::checkProblemIntegrity()
+4: Action::timedAct()
+5: ActionWarehouse::executeActionsWithAction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+6: ActionWarehouse::executeAllActions()
+7: MooseApp::runInputFile()
+8: MooseApp::run()
+9: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x564825cdd0f2]
+10: /lib/libc.so.6(+0x27741) [0x7f8e1c827741]
+11: __libc_start_main
+12: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x564825cdd365]
 Abort(1) on node 0 (rank 0 in comm 0): application called MPI_Abort(MPI_COMM_WORLD, 1) - process 0
