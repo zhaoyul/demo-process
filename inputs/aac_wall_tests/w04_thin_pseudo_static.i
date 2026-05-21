@@ -1,4 +1,4 @@
-# AAC Wall Pseudo-Static Test — W03 Standard (3600x3600x240)
+# AAC Wall Pseudo-Static Test — W04 Thin Wall (3600x3600x200)
 # Smeared cracking model, 3-phase cyclic loading, AD formulation
 
 [Mesh]
@@ -38,10 +38,17 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  add_variables = true
-  strain = SMALL
-  generate_output = 'stress_xx stress_xy stress_yy vonmises_stress'
+[Kernels]
+  [solid_x]
+    type = ADStressDivergenceTensors
+    variable = disp_x
+    component = 0
+  []
+  [solid_y]
+    type = ADStressDivergenceTensors
+    variable = disp_y
+    component = 1
+  []
 []
 
 [BCs]
@@ -65,7 +72,7 @@
   []
   [top_pressure]
     type = ADPressure
-    component = 1
+    variable = disp_y
     boundary = top
     factor = -0.5e6
   []
@@ -80,9 +87,10 @@
 
 [AuxKernels]
   [damage_kernel]
-    type = ADMaterialRealAux
+    type = ADMaterialRealVectorValueAux
     variable = damage_index
-    property = damage_index
+    property = crack_damage
+    component = 0
     execute_on = TIMESTEP_END
   []
   [vonmises]
@@ -107,7 +115,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ADComputeSmallStrain
+    type = ADComputeIncrementalSmallStrain
   []
   [stress]
     type = ADComputeSmearedCrackingStress
@@ -119,8 +127,8 @@
   []
   [exponential_softening]
     type = ADExponentialSoftening
-    residual_stress = 1.0e4
-    alpha = 0.5
+    residual_stress = 0.02
+    alpha = -0.5
   []
 []
 
@@ -147,12 +155,13 @@
 
 [Executioner]
   type = Transient
-  solve_type = 'NEWTON'
-  petsc_options_iname = '-pc_type -pc_factor_mat_solver_package'
-  petsc_options_value = 'lu superlu_dist'
+  solve_type = 'PJFNK'
+  petsc_options_iname = '-pc_type -pc_hypre_type'
+  petsc_options_value = 'hypre boomeramg'
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
-  nl_max_its = 30
+  nl_max_its = 50
+  line_search = bt
 
   start_time = 0.0
   end_time = 280.0
