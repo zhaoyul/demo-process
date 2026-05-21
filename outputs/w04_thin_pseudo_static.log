@@ -1,27 +1,35 @@
 
 [33m
-*** Deprecation Warning ***
-/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:68.5:
-BCs/top_pressure/component: The parameter 'component' is deprecated.
-This parameter is no longer necessary
+*** Warning ***
+/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41.1:
+The following occurred in the Action 'QuasiStatic' of type CommonSolidMechanicsAction.
 
-[39m
+Common parameters are supplied, but not used in /home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41[39m
+
+[33m
+*** Warning ***
+/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41.1:
+The following occurred in the Action 'QuasiStatic' of type CommonSolidMechanicsAction.
+
+Common parameters are supplied, but not used in /home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:41[39m
 
 [31m
 *** ERROR ***
-/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:123.5: Range check failed for parameter Materials/exponential_softening/alpha; expression = 'alpha <= 0', value = 0.5
-/home/kevin/gt/demo/polecats/rust/demo/inputs/aac_wall_tests/w04_thin_pseudo_static.i:122.5: Range check failed for parameter Materials/exponential_softening/residual_stress; expression = 'residual_stress <= 1 & residual_stress >= 0', value = 10000[39m
+Each subdomain must contain at least one Kernel.
+The following block(s) lack an active kernel:   (ids: 0 )[39m
 
-Stack frames: 11
+Stack frames: 13
 0: libMesh::print_trace(std::ostream&)
 1: moose::internal::mooseErrorRaw(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hit::Node const*, bool)
-2: void mooseError<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
-3: Parser::parseError(std::vector<hit::ErrorMessage, std::allocator<hit::ErrorMessage> >) const
-4: Moose::Builder::build()
-5: MooseApp::setupOptions()
-6: MooseApp::run()
-7: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x561e192a90f2]
-8: /lib/libc.so.6(+0x27741) [0x7f3ebfe27741]
-9: __libc_start_main
-10: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x561e192a9365]
+2: NonlinearSystemBase::checkKernelCoverage(std::set<unsigned short, std::less<unsigned short>, std::allocator<unsigned short> > const&) const
+3: FEProblemBase::checkProblemIntegrity()
+4: Action::timedAct()
+5: ActionWarehouse::executeActionsWithAction(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+6: ActionWarehouse::executeAllActions()
+7: MooseApp::runInputFile()
+8: MooseApp::run()
+9: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x50f2) [0x564825cdd0f2]
+10: /lib/libc.so.6(+0x27741) [0x7f8e1c827741]
+11: __libc_start_main
+12: /home/kevin/gt/demo/mayor/rig/build/moose/modules/solid_mechanics/solid_mechanics-opt(+0x5365) [0x564825cdd365]
 Abort(1) on node 0 (rank 0 in comm 0): application called MPI_Abort(MPI_COMM_WORLD, 1) - process 0

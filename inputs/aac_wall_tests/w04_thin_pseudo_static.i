@@ -1,4 +1,4 @@
-# AAC Wall Pseudo-Static Test — W03 Standard (3600x3600x240)
+# AAC Wall Pseudo-Static Test — W04 Thin Wall (3600x3600x200)
 # Smeared cracking model, 3-phase cyclic loading, AD formulation
 
 [Mesh]
@@ -24,10 +24,6 @@
 []
 
 [AuxVariables]
-  [damage_index]
-    order = CONSTANT
-    family = MONOMIAL
-  []
   [vonmises]
     order = CONSTANT
     family = MONOMIAL
@@ -38,10 +34,10 @@
   []
 []
 
-[Physics/SolidMechanics/QuasiStatic]
-  add_variables = true
-  strain = SMALL
-  generate_output = 'stress_xx stress_xy stress_yy vonmises_stress'
+[Kernels]
+  [TensorMechanics]
+    use_automatic_differentiation = true
+  []
 []
 
 [BCs]
@@ -65,7 +61,7 @@
   []
   [top_pressure]
     type = ADPressure
-    component = 1
+    variable = disp_y
     boundary = top
     factor = -0.5e6
   []
@@ -79,12 +75,6 @@
 []
 
 [AuxKernels]
-  [damage_kernel]
-    type = ADMaterialRealAux
-    variable = damage_index
-    property = damage_index
-    execute_on = TIMESTEP_END
-  []
   [vonmises]
     type = ADRankTwoScalarAux
     variable = vonmises
@@ -107,7 +97,7 @@
     poissons_ratio = 0.20
   []
   [strain]
-    type = ADComputeSmallStrain
+    type = ADComputeIncrementalStrain
   []
   [stress]
     type = ADComputeSmearedCrackingStress
@@ -119,16 +109,12 @@
   []
   [exponential_softening]
     type = ADExponentialSoftening
-    residual_stress = 1.0e4
-    alpha = 0.5
+    residual_stress = 0.01
+    alpha = -0.5
   []
 []
 
 [Postprocessors]
-  [damage_max]
-    type = ElementExtremeValue
-    variable = damage_index
-  []
   [top_disp_x]
     type = SideAverageValue
     variable = disp_x
@@ -152,7 +138,7 @@
   petsc_options_value = 'lu superlu_dist'
   nl_rel_tol = 1.0e-5
   nl_abs_tol = 1.0e-6
-  nl_max_its = 30
+  nl_max_its = 50
 
   start_time = 0.0
   end_time = 280.0
