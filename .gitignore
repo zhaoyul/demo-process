@@ -55,3 +55,9 @@ miniforge3/
 renders/contact_frames/
 renders/es_path/
 renders/cdp_frames/
+
+# Gas Town (added by gt)
+.claude/
+.logs/
+state.json
+CLAUDE.local.md
