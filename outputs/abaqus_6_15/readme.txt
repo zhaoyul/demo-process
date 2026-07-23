@@ -21,14 +21,16 @@ Abaqus 6-15 (LW-Copy) → MOOSE 转换算例 — 输出文件说明
 abaqus_6_15_out.e      (32 MB)   MOOSE 求解结果 (Exodus II 格式)
                                  41 个时间步: 位移 disp_x/y/z,
                                  von Mises 应力, 损伤指数 damage_index
+                                 v2: 钢筋 TRUSS 块经节点缝合参与求解,
+                                 与实体共享节点自由度 (随墙体共同变形)
                                  → 视频渲染的数据源, 可用 ParaView 打开
 
 abaqus_6_15_out.csv    (1.3 kB)  后处理器时间历程 (CSV)
                                  load_disp_x (顶面水平位移), vonmises_max,
                                  damage_max 随时间的变化曲线数据
 
-abaqus_6_15_solve.log  (246 kB)  MOOSE 求解日志
-                                 40/40 步全部收敛, 总耗时约 27 分钟
+abaqus_6_15_solve.log  (256 kB)  MOOSE 求解日志
+                                 40/40 步全部收敛, 总耗时约 23 分钟
 
 report.json            (62 kB)   转换报告 (JSON)
                                  材料参数 (E/ν/CDP 曲线), 单元块统计,
@@ -45,9 +47,10 @@ report.json            (62 kB)   转换报告 (JSON)
        --out outputs/abaqus_6_15/6-15_mesh.e \
        --report outputs/abaqus_6_15/report.json
 
-2. 求解 (~27 分钟):
+2. 求解 (~23 分钟):
    cd outputs/abaqus_6_15
    ../../bin/hongchuang-opt -i ../../inputs/abaqus_6_15.i
+   (求解器: MUMPS 直接求解 — 钢/混凝土刚度差异大, AMG 不适用)
 
 3. 渲染视频 (需桌面 X 会话):
    DISPLAY=:0 ~/miniforge3/envs/moose/bin/pvpython tools/render_abaqus_6_15.py

@@ -62,11 +62,27 @@ renders/abaqus_6_15_damage.mp4         ← 损伤演化动画
 | `kuang` (C40+M60) | 混凝土框架 (顶梁/底梁/构造柱) | `kuang__C40`, `kuang__M60` 块, 线弹性 |
 | `BB-qikuai` (aac705) | AAC 砌块 ×7 | `BB_qikuai__aac705` 块, 弹性+scalar damage |
 | `DD-gujiangliao` (M60) | 灌浆料/灰缝 ×3 | `DD_gujiangliao__M60` 块, 线弹性 |
-| 各 `T3D2` 钢筋 part | 顶梁/底梁箍筋纵筋、连接筋 | TRUSS 块 (求解时 `BlockDeletionGenerator` 移除, 渲染叠加) |
+| 各 `T3D2` 钢筋 part | 顶梁/底梁箍筋纵筋、连接筋 | TRUSS 块, `LinearElasticTruss` + `StressDivergenceTensorsTruss` 提供刚度 |
 | `BC-1` ENCASTRE `_PickedSet833@kuang-1` | 框架底面固支 | `DirichletBC` ×3 on nodeset |
 | `Load-1` 压力 0.5MPa `_PickedSurf829` | Step-1 顶面竖向荷载 | `Pressure` BC + ramp 函数 |
 | `BC-2` + `Amp-1` (±16/±20mm) | Step-2 水平循环位移 | `FunctionDirichletBC` + PiecewiseLinear |
-| cohesive 接触 (灰缝) | 砌块间粘结开裂 | **简化**: 单体化 + prescribed damage 演化 |
+
+### 约束映射 (v2 核心)
+
+| Abaqus 约束 | MOOSE/转换器等效 |
+|------------|-----------------|
+| `*Tie, adjust=yes` ×9 (界面绑定) | 转换器节点缝合: slave 面节点并入最近 master 节点 (`--tie-tol`), 带防翻转精确检查 (union 整体试移 + 全部关联 hex 角点 det(J)>0 校验) |
+| `*Embedded Element` (Constraint-4, 钢筋嵌入) | 转换器钢筋缝合: 钢筋节点并入最近实体节点共享自由度 (完美粘结); 已含实体成员的 union 跳过防畸变; 零长/近零长 (<5mm) truss 单元剔除 |
+| `*Coupling, *Kinematic` (Constraint-17, rp→加载面) | 加载面整体 `DirichletBC` (对被驱动自由度 U1 与运动耦合等效) |
+| cohesive 接触 (灰缝) | **简化**: 单体化 + AAC 块 prescribed scalar damage |
+
+> **求解器注意**: 钢筋 (E=206GPa) 与混凝土 (3-36GPa) 刚度差异大,
+> hypre/AMG 预条件会崩溃 — 使用 MUMPS 直接求解器
+> (`-pc_type lu -pc_factor_mat_solver_package mumps`)。
+> MOOSE `EqualValueEmbeddedConstraint` 路线已试验 (KINEMATIC 与 PENALTY
+> 两种 formulation): 均导致线性求解崩溃, 弃用, 改为转换器节点缝合。
+> `SideSetsFromNodeSetsGenerator` 必须用 `nodesets_to_convert` 限定压力面,
+> 否则共享表面节点的 truss 单元 0D 侧面混入会使 Pressure BC 崩溃。
 
 > **简化声明**: Abaqus 模型中砌块间 cohesive 接触与钢筋 embedded 约束在 MOOSE
 > 演示模型中被简化为单体连续介质 + 预设损伤演化函数（与 w03 算例同机制）。

@@ -36,11 +36,25 @@ FPS = 10
 RES = [1600, 900]
 
 
+SOLID_BLOCKS = ['kuang__C40', 'kuang__M60',
+                'DD_gujiangliao__M60', 'BB_qikuai__aac705']
+
+TRUSS_BLOCKS = [
+    'AA_dinglaing_gujin__gangjin', 'AA_zongjin_D12__gangjin',
+    'AA_zongjin_D16__gangjin', 'CC_diliang_gujin__gangjin',
+    'CC_zongjin_D12__gangjin', 'CC_zongjin_D16__gangjin',
+    'EE_lianjiegangjin__HPB400', 'Part_23__gangjin',
+    'gjwl_1__gangjin', 'zgjl__gangjin_A50', 'zgjl__gangjin_A113',
+]
+
+
 def make_scene(field, preset, rng, name, rebar=True):
-    """构建场景: 变形体着色 + 钢筋骨架叠加, 返回更新函数"""
+    """构建场景: 变形体着色 + 钢筋骨架叠加, 返回 (帧数, 时间序列)"""
+    # 实体 reader
     r = ExodusIIReader(FileName=[RESULT])
     r.PointVariables = ['disp_']
     r.ElementVariables = [field]
+    r.ElementBlocks = SOLID_BLOCKS
 
     # MOOSE 输出 disp_x/y/z, ExodusIIReader 自动合成为向量 'disp_'
     warp = WarpByVector(Input=r)
@@ -56,23 +70,20 @@ def make_scene(field, preset, rng, name, rebar=True):
     lut.ApplyPreset(preset, True)
     lut.RescaleTransferFunction(rng[0], rng[1])
 
-    # 钢筋骨架: 从原始网格读 TRUSS 块, 同样施加变形场没有意义
-    # (钢筋未参与求解, 无位移) — 以半透明线框静态显示轮廓
+    # 钢筋骨架: 同一结果文件, 随墙体一起变形
+    # (v2: 钢筋经节点缝合参与求解, 与实体共享节点自由度)
     if rebar:
-        rm = ExodusIIReader(FileName=[MESH])
-        # 只显示钢筋块
-        rm.ElementBlocks = [
-            'AA_dinglaing_gujin__gangjin', 'AA_zongjin_D12__gangjin',
-            'AA_zongjin_D16__gangjin', 'CC_diliang_gujin__gangjin',
-            'CC_zongjin_D12__gangjin', 'CC_zongjin_D16__gangjin',
-            'EE_lianjiegangjin__HPB400', 'Part_23__gangjin',
-            'gjwl_1__gangjin', 'zgjl__gangjin']
-        dm = Show(rm)
+        rt = ExodusIIReader(FileName=[RESULT])
+        rt.PointVariables = ['disp_']
+        rt.ElementBlocks = TRUSS_BLOCKS
+        wt = WarpByVector(Input=rt)
+        wt.Vectors = ['POINTS', 'disp_']
+        wt.ScaleFactor = WARP_SCALE
+        dm = Show(wt)
         dm.Representation = 'Wireframe'
         dm.AmbientColor = [0.85, 0.25, 0.15]
         dm.DiffuseColor = [0.85, 0.25, 0.15]
         dm.LineWidth = 2.0
-        dm.Opacity = 0.9
 
     v = GetActiveView()
     v.Background = [0.10, 0.10, 0.13]

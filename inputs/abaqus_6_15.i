@@ -1,19 +1,24 @@
 # ============================================================================
-# Abaqus 6-15 (LW-Copy) → MOOSE 转换算例
+# Abaqus 6-15 (LW-Copy) → MOOSE 转换算例 v2
 # AAC 砌体墙拟静力试验: C40 框架 + AAC705 砌块 + M60 灌浆/灰缝 + 钢筋骨架
 #
 # 网格: outputs/abaqus_6_15/6-15_mesh.e  (tools/abaqus2exodus.py 由 6-15.inp 转换)
 # 单位: mm-N-MPa (与 Abaqus 源模型一致)
 #
+# v2 — Abaqus 约束的 MOOSE 完整映射:
+#   *Embedded Element (Constraint-4) → 转换器节点缝合 (abaqus2exodus.py)
+#       钢筋节点并入最近实体节点共享自由度 (完美粘结), 随墙体共同变形;
+#       钢筋刚度由 LinearElasticTruss + StressDivergenceTensorsTruss 提供
+#       (MOOSE EqualValueEmbeddedConstraint 路线已试验: 线性求解崩溃, 弃用)
+#   *Tie ×9 (adjust=yes)            → 转换器节点缝合 (abaqus2exodus.py --tie-tol)
+#       slave 面节点并入最近 master 节点, 网格层面保证绑定
+#   *Coupling kinematic (Constraint-17, rp→加载面) → 加载面整体 Dirichlet 位移
+#       (对被驱动自由度 U1 与运动耦合等效)
+#   cohesive 接触 (灰缝)            → 单体化 + AAC 块 prescribed scalar damage
+#
 # 加载协议 (对应 Abaqus 两个 Step):
 #   Step-1: 顶梁顶面竖向压力 0.5 MPa (t=0→1 线性加载, 之后保持)
 #   Step-2: 顶梁顶面水平位移循环 (Amp-1: ±16mm, ±20mm, t=1→8)
-#
-# 简化说明:
-#   - Abaqus *Tie 绑定 → 转换时节点合并 (tol=0.5mm), 结构单体连续
-#   - 砌块间 cohesive 接触 → 单体化 + AAC 块 prescribed scalar damage
-#     (损伤演化函数近似模拟灰缝开裂导致的刚度退化, 与 w03 算例同机制)
-#   - 钢筋 (T3D2) 保留在网格中用于渲染展示, 不参与求解
 # ============================================================================
 
 [Mesh]
@@ -21,26 +26,16 @@
     type = FileMeshGenerator
     file = ../outputs/abaqus_6_15/6-15_mesh.e
   []
-  # 钢筋 TRUSS 块不参与求解 (Abaqus 中为 Embedded, 与实体无共享节点;
-  # 求解网格中删除, 渲染时从原始网格叠加显示)
-  [del_rebar]
-    type = BlockDeletionGenerator
-    input = file
-    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
-             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
-             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
-             EE_lianjiegangjin__HPB400 Part_23__gangjin
-             gjwl_1__gangjin zgjl__gangjin'
-  []
-  # Pressure BC 需要 sideset: 由顶面 nodeset 自动生成
+  # Pressure BC 需要 sideset: 只转换压力面 nodeset
+  # (全部转换会把共享表面节点的 truss 单元 0D 侧面也加入, 导致 Pressure 崩溃)
   [surf_sidesets]
     type = SideSetsFromNodeSetsGenerator
-    input = del_rebar
+    input = file
+    nodesets_to_convert = 'SURF__PickedSurf829'
   []
 []
 
 [Problem]
-  # 钢筋 TRUSS 块不参与求解 (仅渲染), 跳过 kernel/material 覆盖检查
   kernel_coverage_check = false
   material_coverage_check = false
 []
@@ -69,9 +64,123 @@
   []
 []
 
+# ---------------------------------------------------------------------------
+# 实体结构 kernel (框架/砌块/灌浆)
+# ---------------------------------------------------------------------------
 [Kernels]
   [TensorMechanics]
     block = 'kuang__C40 kuang__M60 DD_gujiangliao__M60 BB_qikuai__aac705'
+  []
+  # --- 钢筋 TRUSS kernels (按截面积分组, 3 个分量) ---
+  # D8 箍筋 A=50.24 mm²
+  [truss_x_A50]
+    type = StressDivergenceTensorsTruss
+    variable = disp_x
+    component = 0
+    area = 50.24
+    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
+  []
+  [truss_y_A50]
+    type = StressDivergenceTensorsTruss
+    variable = disp_y
+    component = 1
+    area = 50.24
+    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
+  []
+  [truss_z_A50]
+    type = StressDivergenceTensorsTruss
+    variable = disp_z
+    component = 2
+    area = 50.24
+    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
+  []
+  # D12 纵筋 A=113.04 mm²
+  [truss_x_A113]
+    type = StressDivergenceTensorsTruss
+    variable = disp_x
+    component = 0
+    area = 113.04
+    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
+  []
+  [truss_y_A113]
+    type = StressDivergenceTensorsTruss
+    variable = disp_y
+    component = 1
+    area = 113.04
+    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
+  []
+  [truss_z_A113]
+    type = StressDivergenceTensorsTruss
+    variable = disp_z
+    component = 2
+    area = 113.04
+    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
+  []
+  # D16 纵筋 A=200.96 mm²
+  [truss_x_A201]
+    type = StressDivergenceTensorsTruss
+    variable = disp_x
+    component = 0
+    area = 200.96
+    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
+  []
+  [truss_y_A201]
+    type = StressDivergenceTensorsTruss
+    variable = disp_y
+    component = 1
+    area = 200.96
+    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
+  []
+  [truss_z_A201]
+    type = StressDivergenceTensorsTruss
+    variable = disp_z
+    component = 2
+    area = 200.96
+    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
+  []
+  # HPB400-14 连接筋 A=153.938 mm²
+  [truss_x_A154]
+    type = StressDivergenceTensorsTruss
+    variable = disp_x
+    component = 0
+    area = 153.938
+    block = 'EE_lianjiegangjin__HPB400'
+  []
+  [truss_y_A154]
+    type = StressDivergenceTensorsTruss
+    variable = disp_y
+    component = 1
+    area = 153.938
+    block = 'EE_lianjiegangjin__HPB400'
+  []
+  [truss_z_A154]
+    type = StressDivergenceTensorsTruss
+    variable = disp_z
+    component = 2
+    area = 153.938
+    block = 'EE_lianjiegangjin__HPB400'
+  []
+  # D6 构造筋 A=28.26 mm²
+  [truss_x_A28]
+    type = StressDivergenceTensorsTruss
+    variable = disp_x
+    component = 0
+    area = 28.26
+    block = 'Part_23__gangjin gjwl_1__gangjin'
+  []
+  [truss_y_A28]
+    type = StressDivergenceTensorsTruss
+    variable = disp_y
+    component = 1
+    area = 28.26
+    block = 'Part_23__gangjin gjwl_1__gangjin'
+  []
+  [truss_z_A28]
+    type = StressDivergenceTensorsTruss
+    variable = disp_z
+    component = 2
+    area = 28.26
+    block = 'Part_23__gangjin gjwl_1__gangjin'
   []
 []
 
@@ -105,6 +214,7 @@
     function = pressure_ramp
   []
   # --- Step-2: 顶面水平循环位移 (Amp-1 幅值曲线, _PickedSurf837 耦合面)
+  #     等效 *Coupling kinematic: 加载面整体刚性 U1 平动
   [cyclic_x]
     type = FunctionDirichletBC
     variable = disp_x
@@ -216,6 +326,21 @@
     type = ComputeFiniteStrain
     block = 'kuang__C40 kuang__M60 DD_gujiangliao__M60 BB_qikuai__aac705'
   []
+  # --- 钢筋: truss 线弹性 (gangjin E=206GPa, HPB400 E=200GPa)
+  [truss_steel]
+    type = LinearElasticTruss
+    youngs_modulus = 206000.0
+    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
+             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
+             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
+             Part_23__gangjin gjwl_1__gangjin
+             zgjl__gangjin_A50 zgjl__gangjin_A113'
+  []
+  [truss_steel_hpb]
+    type = LinearElasticTruss
+    youngs_modulus = 200000.0
+    block = 'EE_lianjiegangjin__HPB400'
+  []
 []
 
 [Postprocessors]
@@ -237,8 +362,9 @@
 [Executioner]
   type = Transient
   solve_type = 'PJFNK'
-  petsc_options_iname = '-pc_type -pc_hypre_type'
-  petsc_options_value = 'hypre boomeramg'
+  # truss 刚度(钢~206GPa)与实体(混凝土~3-36GPa)差异大, AMG 崩溃 → 直接求解器
+  petsc_options_iname = '-pc_type -pc_factor_mat_solver_package'
+  petsc_options_value = 'lu mumps'
   nl_rel_tol = 1.0e-4
   nl_abs_tol = 1.0e-6
   nl_max_its = 30
@@ -249,7 +375,7 @@
 []
 
 [Outputs]
-  file_base = ../outputs/abaqus_6_15/abaqus_6_15_out
+  file_base = abaqus_6_15_out
   exodus = true
   csv = true
   perf_graph = true

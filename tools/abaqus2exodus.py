@@ -226,10 +226,12 @@ def parse_inp(path):
                 cur_nset = ('dsload', None, None, False)
             elif kw_name == 'tie':
                 m.ties.append(dict(kv))
+                cur_nset = ('tie_surfs', len(m.ties) - 1, None, False)
             elif kw_name == 'coupling':
                 m.couplings.append(dict(kv))
             elif kw_name == 'embedded element':
                 m.embedded.append(dict(kv))
+                cur_nset = ('embedded_sets', len(m.embedded) - 1, None, False)
             elif kw_name in MAT_KEYS and cur_mat is not None:
                 cur_mat_key = MAT_KEYS[kw_name]
                 m.materials[cur_mat].setdefault(cur_mat_key, [])
@@ -307,6 +309,16 @@ def parse_inp(path):
                             'type': vals[1].strip(),
                             'value': float(vals[2]),
                         })
+                elif kind == 'tie_surfs':
+                    # *Tie 数据行: slave 面, master 面
+                    surfs = [t.strip() for t in line.rstrip(',').split(',') if t.strip()]
+                    if len(surfs) >= 2:
+                        m.ties[name]['slave'] = surfs[0]
+                        m.ties[name]['master'] = surfs[1]
+                elif kind == 'embedded_sets':
+                    # *Embedded Element 数据行: 被嵌入的 elset (钢筋)
+                    sets_ = [t.strip() for t in line.rstrip(',').split(',') if t.strip()]
+                    m.embedded[name].setdefault('embedded', []).extend(sets_)
             except (ValueError, IndexError):
                 pass
             continue
@@ -483,6 +495,9 @@ def build_global_mesh(model, tol):
             ids = part.elsets.get(elset, [])
             for eid in ids:
                 el2mat[eid] = (material, area)
+        # 同一 part 多个截面积时需按面积分块 (如 zgjl: D8+D12)
+        part_areas = {a for _, _, a in part.sections if a is not None}
+        multi_area = len(part_areas) > 1
         for eid, conn in part.elems.items():
             elem_counter += 1
             mat, area = el2mat.get(eid, ('UNASSIGNED', None))
@@ -492,7 +507,8 @@ def build_global_mesh(model, tol):
                 exo_type = 'TRUSS'
             else:
                 exo_type = part.etype or 'UNKNOWN'
-            bname = sanitize(f"{_shorten(re.sub(r'[^A-Za-z0-9_]', '_', inst.part), MAX_NAME - len(str(mat)) - 2)}__{mat}")
+            area_tag = f"_A{int(round(area))}" if (multi_area and area) else ''
+            bname = sanitize(f"{_shorten(re.sub(r'[^A-Za-z0-9_]', '_', inst.part), MAX_NAME - len(str(mat)) - 2 - len(area_tag))}__{mat}{area_tag}")
             blocks[bname].append((elem_counter, [local2g[n] for n in conn]))
             block_etype[bname] = exo_type
             block_meta[bname] = (inst.part, mat)
@@ -568,6 +584,338 @@ def model_inst_part(model, inst_name):
         if inst.name == inst_name:
             return inst.part
     return None
+
+
+# ---------------------------------------------------------------------------
+# *Tie 约束缝合 (等效 Abaqus adjust=yes): slave 面节点并入最近 master 节点
+# ---------------------------------------------------------------------------
+
+def apply_tie_stitch(model, gm, blocks, block_etype, nodesets, tie_tol,
+                     blacklist=None):
+    """返回 (合并对数, 跳过对数, merged_slave_roots)。
+
+    Abaqus *Tie, adjust=yes 会把 slave 面节点吸附到 master 面。
+    这里用并查集把距离 ≤ tie_tol 的 slave/master 节点合并，
+    然后压实节点编号并重映射全部连接关系。
+    blacklist: 禁止合并的 slave 节点 (防单元翻转回滚用)。"""
+    blacklist = blacklist or set()
+    ties = [t for t in model.ties if t.get('slave') and t.get('master')]
+    if not ties:
+        return 0, 0
+
+    nn = len(gm.coords)
+    parent = list(range(nn + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    # 节点 → 单元索引 (防退化: 同单元内节点不得互并)
+    # node_elems[根] 累积整个 union 的关联单元; members[根] 累积成员
+    node_elems = defaultdict(set)
+    elem_conn = {}
+    for bname, elems in blocks.items():
+        for ei, (_, conn) in enumerate(elems):
+            elem_conn[(bname, ei)] = conn
+            for g in conn:
+                node_elems[g].add((bname, ei))
+    members = {g: {g} for g in range(1, nn + 1)}
+
+    # 节点 → 关联单元最小边长 (防止节点移动过远导致薄层单元翻转)
+    HEX_EDGES = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),
+                 (0,4),(1,5),(2,6),(3,7)]
+    node_min_edge = {}
+    hex_elems = []           # (bname, ei, conn) 便于精确翻转检查
+    node_hexes = defaultdict(list)
+    for bname, elems in blocks.items():
+        if block_etype[bname] != 'HEX8':
+            continue
+        for ei, (_, conn) in enumerate(elems):
+            hex_elems.append(conn)
+            for g in conn:
+                node_hexes[g].append(conn)
+            for a, b in HEX_EDGES:
+                pa, pb = gm.coords[conn[a]-1], gm.coords[conn[b]-1]
+                L = math.dist(pa, pb)
+                for g in (conn[a], conn[b]):
+                    if L < node_min_edge.get(g, 1e30):
+                        node_min_edge[g] = L
+
+    import numpy as np
+    _SIG = np.array(_HEX_SIGNS)
+
+    def hex_min_corner_det(conn, override=None):
+        """8 角点 det(J) 最小值; override={节点id: 新坐标} 用于试算"""
+        p = []
+        for g in conn:
+            if override and g in override:
+                p.append(override[g])
+            else:
+                p.append(gm.coords[g - 1])
+        p = np.array(p)
+        worst = 1e30
+        for xi, eta, zeta in _HEX_CORNERS:
+            ds = _SIG[:, 0] * (1 + _SIG[:, 1] * eta) * (1 + _SIG[:, 2] * zeta) / 8.0
+            dt = (1 + _SIG[:, 0] * xi) * _SIG[:, 1] * (1 + _SIG[:, 2] * zeta) / 8.0
+            du = (1 + _SIG[:, 0] * xi) * (1 + _SIG[:, 1] * eta) * _SIG[:, 2] / 8.0
+            J = np.array([ds @ p, dt @ p, du @ p])
+            worst = min(worst, np.linalg.det(J))
+        return worst
+
+    # master 节点空间哈希
+    cell = max(tie_tol, 1.0)
+
+    def hkey(p):
+        return (int(p[0] // cell), int(p[1] // cell), int(p[2] // cell))
+
+    merged, skipped = 0, 0
+    merged_slaves = []
+    for tie in ties:
+        slave_key = 'SURF_' + sanitize(tie['slave'])
+        master_key = 'SURF_' + sanitize(tie['master'])
+        slaves = nodesets.get(slave_key, [])
+        masters = nodesets.get(master_key, [])
+        if not slaves or not masters:
+            print(f"  WARN: tie {tie.get('name')} 面节点为空 "
+                  f"({slave_key}:{len(slaves)}, {master_key}:{len(masters)})",
+                  file=sys.stderr)
+            continue
+        grid = defaultdict(list)
+        for g in masters:
+            grid[hkey(gm.coords[g - 1])].append(g)
+        for sg in slaves:
+            if sg in blacklist:
+                skipped += 1
+                continue
+            sp = gm.coords[sg - 1]
+            k = hkey(sp)
+            # 节点允许的最大移动距离: 关联单元最小边长的 1/4
+            max_move = 0.25 * node_min_edge.get(sg, tie_tol)
+            best, bestd = None, min(tie_tol, max_move)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        for mg in grid.get((k[0] + dx, k[1] + dy, k[2] + dz), []):
+                            mp = gm.coords[mg - 1]
+                            d = math.dist(sp, mp)
+                            if d <= bestd:
+                                # 防退化检查
+                                rs, rm = find(sg), find(mg)
+                                if rs == rm:
+                                    continue
+                                if node_elems[rs] & node_elems[rm]:
+                                    continue
+                                best, bestd = rm, d
+            if best is not None:
+                # 精确翻转检查: 整个 union (共享一个位置) 试移到 best 坐标,
+                # 检查 union 全部关联 hex 的角点 det
+                # (已接受的合并即时更新 gm.coords, 后续检查看到最新几何)
+                rs = find(sg)
+                bc = gm.coords[best - 1]
+                ok = True
+                for key in node_elems.get(rs, set()):
+                    conn = elem_conn[key]
+                    if hex_min_corner_det(
+                            conn, {g: bc for g in conn if find(g) == rs}) <= 1e-9:
+                        ok = False
+                        break
+                if ok:
+                    parent[rs] = best
+                    node_elems[best] |= node_elems.get(rs, set())
+                    node_elems[rs] = set()
+                    mb = members.setdefault(best, {best})
+                    mb |= members.get(rs, {rs})
+                    members[rs] = set()
+                    for g in mb:
+                        gm.coords[g - 1] = bc  # union 即时生效
+                    merged += 1
+                    merged_slaves.append(sg)
+                else:
+                    skipped += 1
+            else:
+                skipped += 1
+
+    if merged == 0:
+        return merged, skipped, {}
+
+    # 压实: 保留各连通分量的根节点; 坐标以实体(HEX8)成员为准,
+    # 防止实体节点被合到钢筋节点坐标上导致单元畸变/翻转
+    merged_roots = _compact_with_solid_coords(gm, blocks, block_etype,
+                                              nodesets, parent)
+    slave_new_ids = {sg: merged_roots[sg] for sg in merged_slaves
+                     if sg in merged_roots}
+    return merged, skipped, slave_new_ids
+
+
+def _compact_with_solid_coords(gm, blocks, block_etype, nodesets, parent):
+    """并查集压实 + 重编号, 坐标优先取实体单元成员节点。
+    返回 {被并掉的节点原 id: 压实后的新 id}"""
+    nn = len(gm.coords)
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    solid_members = set()
+    for b, elems in blocks.items():
+        if block_etype[b] == 'HEX8':
+            for _, conn in elems:
+                solid_members.update(conn)
+
+    canonical = {}
+    for g in range(1, nn + 1):
+        if g in solid_members:
+            canonical.setdefault(find(g), g)
+    # 根本身是实体成员时, 一律以根的坐标为准 (与精确翻转检查一致)
+    for g in range(1, nn + 1):
+        r = find(g)
+        if r == g and r in solid_members:
+            canonical[r] = r
+
+    keep = sorted({find(g) for g in range(1, nn + 1)})
+    newid = {g: i + 1 for i, g in enumerate(keep)}
+
+    def remap(g):
+        return newid[find(g)]
+
+    merged_map = {g: remap(g) for g in range(1, nn + 1) if find(g) != g}
+
+    gm.coords = [gm.coords[canonical.get(g, g) - 1] for g in keep]
+    for bname, elems in blocks.items():
+        blocks[bname] = [(eid, [remap(g) for g in conn]) for eid, conn in elems]
+    for name, ids in nodesets.items():
+        nodesets[name] = sorted({remap(g) for g in ids})
+    return merged_map
+
+
+# ---------------------------------------------------------------------------
+# *Embedded Element 等效: 钢筋节点缝合至最近实体节点 (共享自由度, 完美粘结)
+# ---------------------------------------------------------------------------
+
+def apply_rebar_stitch(gm, blocks, block_etype, nodesets):
+    """TRUSS 块节点并入最近的 HEX8 实体节点。
+
+    等效 Abaqus *Embedded Element: 钢筋与混凝土共享位移 (完美粘结),
+    钢筋 truss 刚度自然叠加到实体节点上。缝合后零长度 truss 单元被剔除。
+    为避免 truss 节点并入 BC/荷载面节点后, MOOSE 由 nodeset 生成 sideset 时
+    把 truss 的 0D 侧面混入 (Pressure BC 会因 0D 元素崩溃),
+    属于 SURF_/固定 nodesets 的实体节点不作为缝合目标。
+    返回 (缝合节点数, 剔除单元数, 最大缝合距离)。"""
+    from scipy.spatial import cKDTree
+
+    protected = set()
+    for name, ids in nodesets.items():
+        if name.startswith('SURF_'):
+            protected.update(ids)
+
+    # 全部实体节点 (判断 union 是否已连到结构)
+    solid_nodes_all = sorted({g for b, elems in blocks.items()
+                              if block_etype[b] == 'HEX8'
+                              for _, conn in elems for g in conn})
+    # 可作为缝合目标的实体节点 (排除 SURF_ 面节点)
+    solid_nodes = [g for g in solid_nodes_all if g not in protected]
+    truss_blocks = [b for b in blocks if block_etype[b] == 'TRUSS']
+    if not truss_blocks or not solid_nodes:
+        return 0, 0, 0.0
+
+    import numpy as np
+    solid_arr = np.array(solid_nodes)
+    coords = np.array(gm.coords)
+    tree = cKDTree(coords[solid_arr - 1])
+
+    nn = len(gm.coords)
+    parent = list(range(nn + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    truss_nodes = sorted({g for b in truss_blocks
+                          for _, conn in blocks[b] for g in conn})
+    # 初始合并可能把实体节点并入钢筋 union (钢筋 instance 先处理)。
+    # 含实体成员的 union 已与结构相连 — 跳过, 避免实体节点被拉走翻转 hex
+    solid_set = set(solid_nodes_all)
+    solid_root = set()
+    for g in range(1, nn + 1):
+        if g in solid_set:
+            solid_root.add(find(g))
+
+    tp = coords[np.array(truss_nodes) - 1]
+    dists, idxs = tree.query(tp)
+    maxd = 0.0
+    stitched = 0
+    for g, d, ii in zip(truss_nodes, dists, idxs):
+        rg = find(g)
+        if rg in solid_root:
+            continue  # 已含实体成员, 天然相连
+        sg = int(solid_arr[ii])
+        if rg == find(sg):
+            continue
+        parent[rg] = find(sg)
+        solid_root.add(find(sg))
+        stitched += 1
+        maxd = max(maxd, float(d))
+
+    # 压实重编号 (坐标以实体成员为准)
+    _compact_with_solid_coords(gm, blocks, block_etype, nodesets, parent)
+
+    # 删除零长度 / 近零长度 truss 单元
+    dropped = 0
+    coords_new = gm.coords
+    for bname, elems in list(blocks.items()):
+        new_elems = []
+        for eid, conn in elems:
+            if len(set(conn)) < 2:
+                dropped += 1
+                continue
+            if block_etype[bname] == 'TRUSS':
+                p, q = coords_new[conn[0] - 1], coords_new[conn[1] - 1]
+                if math.dist(p, q) < 5.0:
+                    dropped += 1
+                    continue
+            new_elems.append((eid, conn))
+        blocks[bname] = new_elems
+    return stitched, dropped, maxd
+
+
+# ---------------------------------------------------------------------------
+# HEX8 角点 Jacobian 检查 (检测单元翻转)
+# ---------------------------------------------------------------------------
+
+_HEX_SIGNS = [(-1,-1,-1),(1,-1,-1),(1,1,-1),(-1,1,-1),
+              (-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1)]
+_HEX_CORNERS = [(xi, eta, zeta) for xi in (-1, 1) for eta in (-1, 1)
+                for zeta in (-1, 1)]
+
+
+def find_inverted_hexes(gm, blocks, block_etype):
+    """返回 {(bname, elem_index)}: 角点 det(J) <= 0 的单元"""
+    import numpy as np
+    C = np.array(gm.coords)
+    bad = set()
+    for bname, elems in blocks.items():
+        if block_etype[bname] != 'HEX8':
+            continue
+        for ei, (_, conn) in enumerate(elems):
+            p = C[np.array(conn) - 1]
+            for xi, eta, zeta in _HEX_CORNERS:
+                ds = np.array([a*(1+b*eta)*(1+c*zeta)
+                               for a, b, c in _HEX_SIGNS]) / 8.0
+                dt = np.array([(1+a*xi)*b*(1+c*zeta)
+                               for a, b, c in _HEX_SIGNS]) / 8.0
+                du = np.array([(1+a*xi)*(1+b*eta)*c
+                               for a, b, c in _HEX_SIGNS]) / 8.0
+                J = np.array([ds @ p, dt @ p, du @ p])
+                if np.linalg.det(J) <= 0:
+                    bad.add((bname, ei))
+                    break
+    return bad
 
 
 # ---------------------------------------------------------------------------
@@ -678,6 +1026,8 @@ def main():
     ap.add_argument('--report', help='JSON 报告输出路径')
     ap.add_argument('--merge-tol', type=float, default=0.5,
                     help='跨 instance 节点合并容差 (默认 0.5, 与模型单位一致)')
+    ap.add_argument('--tie-tol', type=float, default=20.0,
+                    help='*Tie 面节点缝合容差 (默认 20, 等效 adjust=yes)')
     args = ap.parse_args()
 
     print(f"[1/3] 解析 {args.inp} ...")
@@ -693,6 +1043,44 @@ def main():
           f"单元={sum(len(v) for v in blocks.values())} "
           f"块={len(blocks)} nodesets={len(nodesets)}")
 
+    # *Tie 绑定约束缝合 (等效 Abaqus adjust=yes), 带防翻转回滚
+    import copy
+    snapshot = (list(gm.coords), copy.deepcopy(blocks),
+                copy.deepcopy(nodesets))
+    blacklist = set()
+    tie_merged = tie_skipped = 0
+    for attempt in range(4):
+        tie_merged, tie_skipped, slave_ids = apply_tie_stitch(
+            model, gm, blocks, block_etype, nodesets, args.tie_tol,
+            blacklist)
+        bad = find_inverted_hexes(gm, blocks, block_etype)
+        if not bad:
+            break
+        # 回滚: 把导致翻转的合并节点加入黑名单, 恢复快照重缝
+        root_to_slave = {v: k for k, v in slave_ids.items()}
+        n_before = len(blacklist)
+        for bname, ei in bad:
+            for g in blocks[bname][ei][1]:
+                if g in root_to_slave:
+                    blacklist.add(root_to_slave[g])
+        print(f"      *Tie 缝合导致 {len(bad)} 个单元翻转, "
+              f"回滚 {len(blacklist) - n_before} 处合并并重试 "
+              f"(attempt {attempt + 1})")
+        gm.coords, blocks, nodesets = (list(snapshot[0]),
+                                       copy.deepcopy(snapshot[1]),
+                                       copy.deepcopy(snapshot[2]))
+    if tie_merged or tie_skipped:
+        print(f"      *Tie 缝合: 合并 {tie_merged} 对, 跳过 {tie_skipped} "
+              f"(tol={args.tie_tol}), 压实后节点={len(gm.coords)}")
+
+    # *Embedded Element 等效: 钢筋节点缝合至最近实体节点
+    rebar_stitched, rebar_dropped, rebar_maxd = apply_rebar_stitch(
+        gm, blocks, block_etype, nodesets)
+    if rebar_stitched:
+        print(f"      *Embedded 缝合: {rebar_stitched} 个钢筋节点并入实体节点 "
+              f"(最大距离 {rebar_maxd:.1f}), 剔除零长度单元 {rebar_dropped}, "
+              f"压实后节点={len(gm.coords)}")
+
     print(f"[3/3] 写出 Exodus: {args.out}")
     write_exodus(args.out, gm, blocks, block_etype, block_meta, nodesets,
                  args.inp)
@@ -704,6 +1092,11 @@ def main():
     report = {
         'source': args.inp,
         'merge_tol': args.merge_tol,
+        'tie_tol': args.tie_tol,
+        'tie_merged': tie_merged,
+        'rebar_stitched': rebar_stitched,
+        'rebar_dropped': rebar_dropped,
+        'rebar_max_stitch_dist': rebar_maxd,
         'num_nodes': len(gm.coords),
         'num_merged': gm.merged_count,
         'num_elems': sum(len(v) for v in blocks.values()),
