@@ -61,3 +61,7 @@ renders/cdp_frames/
 .logs/
 state.json
 CLAUDE.local.md
+
+# Gas Town (added by gt)
+.opencode/
+GEMINI.md
