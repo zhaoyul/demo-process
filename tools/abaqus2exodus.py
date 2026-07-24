@@ -930,22 +930,45 @@ def _solve3(J, b):
     return x
 
 
-def point_in_hex(pt, conn_pts, tol=0.05, max_it=30):
-    """Newton 反解自然坐标。命中返回 (xi, eta, zeta), 否则 None"""
-    xi = eta = zeta = 0.0
+def point_in_hex(pt, conn_pts, tol=0.05, max_it=50, best_effort=False):
+    """Newton 反解自然坐标。
+    best_effort=False: 仅内部点命中返回 (xi,eta,zeta), 否则 None。
+    best_effort=True: 不收敛也返回截断到 [-1,1] 的最近自然坐标 (投影)。"""
+    center = [sum(p[d] for p in conn_pts) / 8.0 for d in range(3)]
+    _, J0 = _hex_map(conn_pts, 0.0, 0.0, 0.0)
+    dx = _solve3(J0, [pt[d] - center[d] for d in range(3)])
+    if dx is None:
+        xi = eta = zeta = 0.0
+    else:
+        xi, eta, zeta = dx
+    converged = False
     for _ in range(max_it):
         p, J = _hex_map(conn_pts, xi, eta, zeta)
         r = [pt[d] - p[d] for d in range(3)]
         if max(abs(r[0]), abs(r[1]), abs(r[2])) < 1e-8:
+            converged = True
             break
         dx = _solve3(J, r)
         if dx is None:
+            break
+        scale = 1.0
+        m = max(abs(dx[0]), abs(dx[1]), abs(dx[2]))
+        if m > 1.0:
+            scale = 1.0 / m
+        xi, eta, zeta = xi + dx[0] * scale, eta + dx[1] * scale, zeta + dx[2] * scale
+        if best_effort:
+            # 迭代中约束在略大范围内, 防发散
+            xi = max(-1.5, min(1.5, xi))
+            eta = max(-1.5, min(1.5, eta))
+            zeta = max(-1.5, min(1.5, zeta))
+        elif max(abs(xi), abs(eta), abs(zeta)) > 5.0:
             return None
-        xi, eta, zeta = xi + dx[0], eta + dx[1], zeta + dx[2]
-        if max(abs(xi), abs(eta), abs(zeta)) > 3.0:
-            return None
-    if max(abs(xi), abs(eta), abs(zeta)) <= 1.0 + tol:
+    if converged and max(abs(xi), abs(eta), abs(zeta)) <= 1.0 + tol:
         return (xi, eta, zeta)
+    if best_effort:
+        return (max(-1.0, min(1.0, xi)),
+                max(-1.0, min(1.0, eta)),
+                max(-1.0, min(1.0, zeta)))
     return None
 
 

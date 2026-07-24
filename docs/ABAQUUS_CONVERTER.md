@@ -72,7 +72,7 @@ renders/abaqus_6_15_damage.mp4         ← 损伤演化动画
 | Abaqus 约束 | MOOSE/转换器等效 |
 |------------|-----------------|
 | `*Tie, adjust=yes` ×9 (界面绑定) | 转换器节点缝合: slave 面节点并入最近 master 节点 (`--tie-tol`), 带防翻转精确检查 (union 整体试移 + 全部关联 hex 角点 det(J)>0 校验) |
-| `*Embedded Element` (Constraint-4, 钢筋嵌入) | **求解**: 钢筋节点缝合至最近实体节点共享自由度 (位移耦合 + truss 刚度真实传递, `axial_stress` 输出为 `truss_stress` 场); **渲染**: `tools/build_rebar_result.py` 按 `--render-map` 导出的映射把结果回弹到原始直线几何, 解决缝合导致的视觉弯折 |
+| `*Embedded Element` (Constraint-4, 钢筋嵌入) | **求解**: 钢筋节点缝合至最近实体节点共享自由度 (位移耦合 + truss 刚度真实传递, `axial_stress` 输出为 `truss_stress` 场); **渲染**: `tools/build_rebar_result.py` 按宿主单元形函数插值重构钢筋位移 (`u_rebar = Σ N_i·u_solid_i`, 凸组合 ⇒ 位移不越出墙体、直线不折弯), 几何回弹到原始直线, 应力取求解的 `truss_stress` (按质心坐标匹配 MOOSE 重排的单元) |
 | `*Coupling, *Kinematic` (Constraint-17, rp→加载面) | 加载面整体 `DirichletBC` (对被驱动自由度 U1 与运动耦合等效) |
 | cohesive 接触 (灰缝) | **简化**: 单体化 + AAC 块 prescribed scalar damage |
 
@@ -81,6 +81,8 @@ renders/abaqus_6_15_damage.mp4         ← 损伤演化动画
 > MOOSE 原生 `EqualValueEmbeddedConstraint` (KINEMATIC/PENALTY) 与 MPC 方案
 > (`LinearNodalConstraint` ×17k, 宿主 hex 形函数插值, `--mpc` 可重新生成)
 > 均导致 MUMPS 零主元 (约束结构病态), 已弃用。
+> **注意**: MOOSE 输出 .e 会重排节点/单元编号 (node_num_map 为 identity
+> 但坐标顺序与输入网格不同), 跨文件引用节点/单元必须按坐标最近邻匹配。
 > 求解器: MUMPS 直接求解 (钢/混凝土刚度差异致 AMG 崩溃)。
 > `SideSetsFromNodeSetsGenerator` 必须用 `nodesets_to_convert` 限定压力面,
 > 否则共享表面节点的 truss 单元 0D 侧面混入会使 Pressure BC 崩溃。
