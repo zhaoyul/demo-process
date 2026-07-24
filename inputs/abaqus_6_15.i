@@ -6,10 +6,10 @@
 # 单位: mm-N-MPa (与 Abaqus 源模型一致)
 #
 # v2 — Abaqus 约束的 MOOSE 完整映射:
-#   *Embedded Element (Constraint-4) → 转换器节点缝合 (abaqus2exodus.py)
-#       钢筋节点并入最近实体节点共享自由度 (完美粘结), 随墙体共同变形;
-#       钢筋刚度由 LinearElasticTruss + StressDivergenceTensorsTruss 提供
-#       (MOOSE EqualValueEmbeddedConstraint 路线已试验: 线性求解崩溃, 弃用)
+#   *Embedded Element (Constraint-4) → MPC 多点约束 (v3)
+#       每个钢筋节点定位宿主 hex, 形函数插值 u_truss = Σ N_i·u_solid_i
+#       (LinearNodalConstraint × 17364, 见 outputs/abaqus_6_15/mpc_rebar.i;
+#        未命中宿主者退化为最近实体节点 w=1; 钢筋保持原始直线几何)
 #   *Tie ×9 (adjust=yes)            → 转换器节点缝合 (abaqus2exodus.py --tie-tol)
 #       slave 面节点并入最近 master 节点, 网格层面保证绑定
 #   *Coupling kinematic (Constraint-17, rp→加载面) → 加载面整体 Dirichlet 位移
@@ -59,6 +59,10 @@
     family = MONOMIAL
   []
   [damage_index]
+    order = CONSTANT
+    family = MONOMIAL
+  []
+  [truss_stress]
     order = CONSTANT
     family = MONOMIAL
   []
@@ -272,6 +276,17 @@
     block = 'BB_qikuai__aac705'
     execute_on = TIMESTEP_END
   []
+  [truss_stress_aux]
+    type = MaterialRealAux
+    variable = truss_stress
+    property = axial_stress
+    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
+             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
+             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
+             EE_lianjiegangjin__HPB400 Part_23__gangjin
+             gjwl_1__gangjin zgjl__gangjin_A50 zgjl__gangjin_A113'
+    execute_on = TIMESTEP_END
+  []
 []
 
 [Materials]
@@ -356,6 +371,10 @@
   [damage_max]
     type = ElementExtremeValue
     variable = damage_index
+  []
+  [truss_stress_max]
+    type = ElementExtremeValue
+    variable = truss_stress
   []
 []
 

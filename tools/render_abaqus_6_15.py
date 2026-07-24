@@ -25,7 +25,8 @@ RENDERS = ROOT / "renders"
 RENDERS.mkdir(exist_ok=True)
 
 RESULT = sys.argv[1] if len(sys.argv) > 1 else str(OUTDIR / "abaqus_6_15_out.e")
-MESH = str(OUTDIR / "6-15_mesh.e")   # 钢筋骨架来源
+REBAR_RESULT = str(OUTDIR / "rebar_result.e")  # tools/build_rebar_result.py 生成
+MESH = str(OUTDIR / "6-15_mesh.e")   # 预留
 
 from paraview.simple import *
 
@@ -64,26 +65,28 @@ def make_scene(field, preset, rng, name, rebar=True):
     d = Show(warp)
     d.Representation = 'Surface With Edges'
     d.EdgeColor = [0.2, 0.2, 0.2]
-    d.Opacity = 0.88  # 半透明, 让内部钢筋骨架可见
+    d.Opacity = 0.55  # 更透明, 让内部钢筋应力云清晰可见
     ColorBy(d, ('CELLS', field))
     lut = GetColorTransferFunction(field)
     lut.ApplyPreset(preset, True)
     lut.RescaleTransferFunction(rng[0], rng[1])
 
-    # 钢筋骨架: 同一结果文件, 随墙体一起变形
-    # (v2: 钢筋经节点缝合参与求解, 与实体共享节点自由度)
+    # 钢筋骨架: rebar_result.e (原始直线几何 + 位移/应力回弹)
+    # 按 truss_stress 着色 — 直接回应"钢筋应力为零"反馈
     if rebar:
-        rt = ExodusIIReader(FileName=[RESULT])
+        rt = ExodusIIReader(FileName=[REBAR_RESULT])
         rt.PointVariables = ['disp_']
-        rt.ElementBlocks = TRUSS_BLOCKS
+        rt.ElementVariables = ['truss_stress']
         wt = WarpByVector(Input=rt)
         wt.Vectors = ['POINTS', 'disp_']
         wt.ScaleFactor = WARP_SCALE
         dm = Show(wt)
         dm.Representation = 'Wireframe'
-        dm.AmbientColor = [0.85, 0.25, 0.15]
-        dm.DiffuseColor = [0.85, 0.25, 0.15]
-        dm.LineWidth = 2.0
+        dm.LineWidth = 3.0
+        ColorBy(dm, ('CELLS', 'truss_stress'))
+        rlut = GetColorTransferFunction('truss_stress')
+        rlut.ApplyPreset('Cool to Warm (Extended)', True)
+        rlut.RescaleTransferFunction(0.0, 350.0)
 
     v = GetActiveView()
     v.Background = [0.10, 0.10, 0.13]

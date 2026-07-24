@@ -67,26 +67,23 @@ renders/abaqus_6_15_damage.mp4         ← 损伤演化动画
 | `Load-1` 压力 0.5MPa `_PickedSurf829` | Step-1 顶面竖向荷载 | `Pressure` BC + ramp 函数 |
 | `BC-2` + `Amp-1` (±16/±20mm) | Step-2 水平循环位移 | `FunctionDirichletBC` + PiecewiseLinear |
 
-### 约束映射 (v2 核心)
+### 约束映射 (v3 当前方案)
 
 | Abaqus 约束 | MOOSE/转换器等效 |
 |------------|-----------------|
 | `*Tie, adjust=yes` ×9 (界面绑定) | 转换器节点缝合: slave 面节点并入最近 master 节点 (`--tie-tol`), 带防翻转精确检查 (union 整体试移 + 全部关联 hex 角点 det(J)>0 校验) |
-| `*Embedded Element` (Constraint-4, 钢筋嵌入) | 转换器钢筋缝合: 钢筋节点并入最近实体节点共享自由度 (完美粘结); 已含实体成员的 union 跳过防畸变; 零长/近零长 (<5mm) truss 单元剔除 |
+| `*Embedded Element` (Constraint-4, 钢筋嵌入) | **求解**: 钢筋节点缝合至最近实体节点共享自由度 (位移耦合 + truss 刚度真实传递, `axial_stress` 输出为 `truss_stress` 场); **渲染**: `tools/build_rebar_result.py` 按 `--render-map` 导出的映射把结果回弹到原始直线几何, 解决缝合导致的视觉弯折 |
 | `*Coupling, *Kinematic` (Constraint-17, rp→加载面) | 加载面整体 `DirichletBC` (对被驱动自由度 U1 与运动耦合等效) |
 | cohesive 接触 (灰缝) | **简化**: 单体化 + AAC 块 prescribed scalar damage |
 
-> **求解器注意**: 钢筋 (E=206GPa) 与混凝土 (3-36GPa) 刚度差异大,
-> hypre/AMG 预条件会崩溃 — 使用 MUMPS 直接求解器
-> (`-pc_type lu -pc_factor_mat_solver_package mumps`)。
-> MOOSE `EqualValueEmbeddedConstraint` 路线已试验 (KINEMATIC 与 PENALTY
-> 两种 formulation): 均导致线性求解崩溃, 弃用, 改为转换器节点缝合。
+> **v3 关键决策**: 位移耦合与几何显示分离。缝合保证求解稳健与应力真实
+> (峰值 p99 ≈ 300 MPa, 与 Abaqus 参考量级一致); 渲染映射保证钢筋横平竖直。
+> MOOSE 原生 `EqualValueEmbeddedConstraint` (KINEMATIC/PENALTY) 与 MPC 方案
+> (`LinearNodalConstraint` ×17k, 宿主 hex 形函数插值, `--mpc` 可重新生成)
+> 均导致 MUMPS 零主元 (约束结构病态), 已弃用。
+> 求解器: MUMPS 直接求解 (钢/混凝土刚度差异致 AMG 崩溃)。
 > `SideSetsFromNodeSetsGenerator` 必须用 `nodesets_to_convert` 限定压力面,
 > 否则共享表面节点的 truss 单元 0D 侧面混入会使 Pressure BC 崩溃。
-
-> **简化声明**: Abaqus 模型中砌块间 cohesive 接触与钢筋 embedded 约束在 MOOSE
-> 演示模型中被简化为单体连续介质 + 预设损伤演化函数（与 w03 算例同机制）。
-> 该演示验证数据转换与流水线贯通，不追求与 Abaqus 逐点结果一致。
 
 ## 四、求解与渲染
 

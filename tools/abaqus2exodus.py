@@ -885,6 +885,140 @@ def apply_rebar_stitch(gm, blocks, block_etype, nodesets):
 
 
 # ---------------------------------------------------------------------------
+# *Embedded Element → MPC (LinearNodalConstraint) 导出
+# 每个钢筋节点定位宿主 hex, 形函数插值: u_truss = Σ N_i · u_solid_i
+# ---------------------------------------------------------------------------
+
+_HEX_NODE_SIGNS = [(-1,-1,-1),(1,-1,-1),(1,1,-1),(-1,1,-1),
+                   (-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1)]
+
+
+def _hex_shape(xi, eta, zeta):
+    return [0.125 * (1 + a * xi) * (1 + b * eta) * (1 + c * zeta)
+            for a, b, c in _HEX_NODE_SIGNS]
+
+
+def _hex_map(conn_pts, xi, eta, zeta):
+    """三线性映射 + 雅可比。返回 (物理点, J 3x3)"""
+    N = _hex_shape(xi, eta, zeta)
+    p = [sum(N[i] * conn_pts[i][d] for i in range(8)) for d in range(3)]
+    dN = [0.125 * a * (1 + b * eta) * (1 + c * zeta) for a, b, c in _HEX_NODE_SIGNS]
+    eN = [0.125 * (1 + a * xi) * b * (1 + c * zeta) for a, b, c in _HEX_NODE_SIGNS]
+    zN = [0.125 * (1 + a * xi) * (1 + b * eta) * c for a, b, c in _HEX_NODE_SIGNS]
+    J = [[sum(dN[i] * conn_pts[i][d] for i in range(8)) for d in range(3)],
+         [sum(eN[i] * conn_pts[i][d] for i in range(8)) for d in range(3)],
+         [sum(zN[i] * conn_pts[i][d] for i in range(8)) for d in range(3)]]
+    return p, J
+
+
+def _solve3(J, b):
+    """解 3x3 线性系统 J x = b (高斯消元)"""
+    import copy as _c
+    A = [row[:] + [b[i]] for i, row in enumerate(J)]
+    for col in range(3):
+        piv = max(range(col, 3), key=lambda r: abs(A[r][col]))
+        if abs(A[piv][col]) < 1e-14:
+            return None
+        A[col], A[piv] = A[piv], A[col]
+        for r in range(col + 1, 3):
+            f = A[r][col] / A[col][col]
+            for c in range(col, 4):
+                A[r][c] -= f * A[col][c]
+    x = [0.0] * 3
+    for r in (2, 1, 0):
+        x[r] = (A[r][3] - sum(A[r][c] * x[c] for c in range(r + 1, 3))) / A[r][r]
+    return x
+
+
+def point_in_hex(pt, conn_pts, tol=0.05, max_it=30):
+    """Newton 反解自然坐标。命中返回 (xi, eta, zeta), 否则 None"""
+    xi = eta = zeta = 0.0
+    for _ in range(max_it):
+        p, J = _hex_map(conn_pts, xi, eta, zeta)
+        r = [pt[d] - p[d] for d in range(3)]
+        if max(abs(r[0]), abs(r[1]), abs(r[2])) < 1e-8:
+            break
+        dx = _solve3(J, r)
+        if dx is None:
+            return None
+        xi, eta, zeta = xi + dx[0], eta + dx[1], zeta + dx[2]
+        if max(abs(xi), abs(eta), abs(zeta)) > 3.0:
+            return None
+    if max(abs(xi), abs(eta), abs(zeta)) <= 1.0 + tol:
+        return (xi, eta, zeta)
+    return None
+
+
+def emit_rebar_mpc(gm, blocks, block_etype, out_path, penalty=1e7,
+                   vars_=('disp_x', 'disp_y', 'disp_z')):
+    """为每个钢筋节点生成 LinearNodalConstraint (宿主 hex 形函数插值)。
+    找不到宿主的节点退化为最近实体节点 w=1。返回 (总数, 插值数, 退化数)。"""
+    import numpy as np
+    from scipy.spatial import cKDTree
+
+    solid_elems = []
+    for b, elems in blocks.items():
+        if block_etype[b] == 'HEX8':
+            solid_elems.extend(elems)
+    truss_nodes = sorted({g for b, e in blocks.items()
+                          if block_etype[b] == 'TRUSS'
+                          for _, conn in e for g in conn})
+    C = np.array(gm.coords)
+
+    # hex 质心 KD 树粗筛候选
+    cents = np.array([C[np.array(conn) - 1].mean(axis=0)
+                      for _, conn in solid_elems])
+    sizes = np.array([C[np.array(conn) - 1].max(axis=0) -
+                      C[np.array(conn) - 1].min(axis=0)
+                      for _, conn in solid_elems])
+    radii = np.linalg.norm(sizes, axis=1) / 2.0
+    tree = cKDTree(cents)
+
+    n_interp = n_degen = 0
+    lines = []
+    for g in truss_nodes:
+        pt = C[g - 1]
+        cand = tree.query_ball_point(pt, r=200.0)
+        cand.sort(key=lambda i: np.linalg.norm(cents[i] - pt) - radii[i])
+        weights = None
+        for i in cand[:24]:
+            conn = solid_elems[i][1]
+            pts = [tuple(C[n - 1]) for n in conn]
+            res = point_in_hex(pt, pts)
+            if res is not None:
+                # 截断到 [-1,1]: 外插形函数可能为负 → penalty 对角线为负 →
+                # 矩阵不定 → MUMPS PC_FAILED
+                xi, eta, zeta = (max(-1.0, min(1.0, c)) for c in res)
+                weights = list(zip([int(n) for n in conn],
+                                   _hex_shape(xi, eta, zeta)))
+                break
+        if weights is None:
+            # 退化: 最近实体节点 w=1
+            all_solid = sorted({n for _, conn in solid_elems for n in conn})
+            d, ii = cKDTree(C[np.array(all_solid) - 1]).query(pt)
+            weights = [(int(all_solid[ii]), 1.0)]
+            n_degen += 1
+        else:
+            n_interp += 1
+        prim = ' '.join(str(n) for n, _ in weights)
+        wts = ' '.join(f'{w:.8g}' for _, w in weights)
+        for v in vars_:
+            lines.append(f"  [mpc_n{g}_{v[-1]}]\n"
+                         f"    type = LinearNodalConstraint\n"
+                         f"    variable = {v}\n"
+                         f"    primary = '{prim}'\n"
+                         f"    secondary_node_ids = '{g}'\n"
+                         f"    weights = '{wts}'\n"
+                         f"    penalty = {penalty:g}\n"
+                         f"  []\n")
+    with open(out_path, 'w') as f:
+        f.write('[Constraints]\n')
+        f.writelines(lines)
+        f.write('[]\n')
+    return len(truss_nodes), n_interp, n_degen
+
+
+# ---------------------------------------------------------------------------
 # HEX8 角点 Jacobian 检查 (检测单元翻转)
 # ---------------------------------------------------------------------------
 
@@ -1028,6 +1162,12 @@ def main():
                     help='跨 instance 节点合并容差 (默认 0.5, 与模型单位一致)')
     ap.add_argument('--tie-tol', type=float, default=20.0,
                     help='*Tie 面节点缝合容差 (默认 20, 等效 adjust=yes)')
+    ap.add_argument('--no-rebar-stitch', action='store_true',
+                    help='跳过钢筋节点缝合 (保持原始几何, 配合 MOOSE embedded 约束)')
+    ap.add_argument('--mpc', metavar='OUT_I',
+                    help='导出钢筋 embedded MPC 约束片段 (LinearNodalConstraint)')
+    ap.add_argument('--render-map', metavar='OUT_JSON',
+                    help='导出原始钢筋几何→缝合节点渲染映射 (配合钢筋缝合)')
     args = ap.parse_args()
 
     print(f"[1/3] 解析 {args.inp} ...")
@@ -1074,12 +1214,51 @@ def main():
               f"(tol={args.tie_tol}), 压实后节点={len(gm.coords)}")
 
     # *Embedded Element 等效: 钢筋节点缝合至最近实体节点
-    rebar_stitched, rebar_dropped, rebar_maxd = apply_rebar_stitch(
-        gm, blocks, block_etype, nodesets)
+    if args.no_rebar_stitch:
+        rebar_stitched, rebar_dropped, rebar_maxd = 0, 0, 0.0
+    else:
+        # 快照原始钢筋几何 (渲染映射用)
+        truss_orig = {}
+        truss_orig_coords = {}
+        for b, elems in blocks.items():
+            if block_etype[b] == 'TRUSS':
+                truss_orig[b] = list(elems)
+                truss_orig_coords[b] = {
+                    eid: (gm.coords[conn[0] - 1], gm.coords[conn[1] - 1])
+                    for eid, conn in elems}
+        rebar_stitched, rebar_dropped, rebar_maxd = apply_rebar_stitch(
+            gm, blocks, block_etype, nodesets)
     if rebar_stitched:
         print(f"      *Embedded 缝合: {rebar_stitched} 个钢筋节点并入实体节点 "
               f"(最大距离 {rebar_maxd:.1f}), 剔除零长度单元 {rebar_dropped}, "
               f"压实后节点={len(gm.coords)}")
+
+    # 渲染映射: 原始直线钢筋单元 → 缝合后最终节点 (渲染时按位移场回弹)
+    if args.render_map and rebar_stitched:
+        rmap = {'blocks': []}
+        for b, orig_elems in truss_orig.items():
+            final_by_eid = {eid: conn for eid, conn in blocks.get(b, [])}
+            entry = {'name': b, 'elements': []}
+            for eid, oconn in orig_elems:
+                if eid in final_by_eid:
+                    p0, p1 = truss_orig_coords[b][eid]
+                    entry['elements'].append({
+                        'eid': eid, 'p0': list(p0), 'p1': list(p1),
+                        'n': final_by_eid[eid]})
+            if entry['elements']:
+                rmap['blocks'].append(entry)
+        import json as _json
+        with open(args.render_map, 'w') as f:
+            _json.dump(rmap, f)
+        n_el = sum(len(e['elements']) for e in rmap['blocks'])
+        print(f"      渲染映射: {n_el} 个钢筋单元 → {args.render_map}")
+
+    # MPC embedded 约束片段导出 (LinearNodalConstraint, 形函数插值)
+    if args.mpc:
+        n_tot, n_interp, n_degen = emit_rebar_mpc(
+            gm, blocks, block_etype, args.mpc)
+        print(f"      MPC 约束: {n_tot} 个钢筋节点 "
+              f"(插值 {n_interp}, 最近点退化 {n_degen}) → {args.mpc}")
 
     print(f"[3/3] 写出 Exodus: {args.out}")
     write_exodus(args.out, gm, blocks, block_etype, block_meta, nodesets,

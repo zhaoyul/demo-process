@@ -18,12 +18,20 @@ Abaqus 6-15 (LW-Copy) → MOOSE 转换算例 — 输出文件说明
                                  (HEX8 实体 + TRUSS 钢筋) / 480 个 nodesets
                                  → MOOSE FileMesh 直接读取, 可用 ParaView 打开
 
-abaqus_6_15_out.e      (32 MB)   MOOSE 求解结果 (Exodus II 格式)
+abaqus_6_15_out.e      (37 MB)   MOOSE 求解结果 (Exodus II 格式)
                                  41 个时间步: 位移 disp_x/y/z,
-                                 von Mises 应力, 损伤指数 damage_index
-                                 v2: 钢筋 TRUSS 块经节点缝合参与求解,
-                                 与实体共享节点自由度 (随墙体共同变形)
+                                 von Mises 应力, 损伤指数 damage_index,
+                                 钢筋轴向应力 truss_stress (v3 新增)
+                                 v3: 钢筋 TRUSS 块经节点缝合参与求解,
+                                 峰值钢筋应力 p99 ≈ 300 MPa
                                  → 视频渲染的数据源, 可用 ParaView 打开
+
+rebar_result.e         (小)      钢筋渲染专用结果 (Exodus II)
+                                 由 tools/build_rebar_result.py 生成:
+                                 原始直线钢筋几何 + 求解位移/应力回弹
+                                 (视频中钢筋横平竖直且随墙体变形)
+
+rebar_render_map.json  (1.9 MB)  钢筋渲染映射 (转换器 --render-map 导出)
 
 abaqus_6_15_out.csv    (1.3 kB)  后处理器时间历程 (CSV)
                                  load_disp_x (顶面水平位移), vonmises_max,
@@ -52,7 +60,8 @@ report.json            (62 kB)   转换报告 (JSON)
    ../../bin/hongchuang-opt -i ../../inputs/abaqus_6_15.i
    (求解器: MUMPS 直接求解 — 钢/混凝土刚度差异大, AMG 不适用)
 
-3. 渲染视频 (需桌面 X 会话):
+3. 重构钢筋结果 + 渲染视频 (需桌面 X 会话):
+   ~/miniforge3/envs/moose/bin/python tools/build_rebar_result.py
    DISPLAY=:0 ~/miniforge3/envs/moose/bin/pvpython tools/render_abaqus_6_15.py
    输出: renders/abaqus_6_15_vonmises.mp4, renders/abaqus_6_15_damage.mp4
 
