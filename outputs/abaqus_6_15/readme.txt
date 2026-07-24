@@ -26,10 +26,11 @@ abaqus_6_15_out.e      (37 MB)   MOOSE 求解结果 (Exodus II 格式)
                                  峰值钢筋应力 p99 ≈ 300 MPa
                                  → 视频渲染的数据源, 可用 ParaView 打开
 
-rebar_result.e         (小)      钢筋渲染专用结果 (Exodus II)
-                                 由 tools/build_rebar_result.py 生成:
-                                 原始直线钢筋几何 + 求解位移/应力回弹
-                                 (视频中钢筋横平竖直且随墙体变形)
+rebar_result.e         (7.6 MB)  钢筋结果 (Exodus II, v4)
+                                 全部 6110 个钢筋单元 (零删除无断点),
+                                 原始直线几何 + 宿主单元插值位移 +
+                                 弹塑性应力 (inp *Plastic 曲线,
+                                 gangjin/HPB400, 屈服截断 ≤400 MPa)
 
 rebar_render_map.json  (1.9 MB)  钢筋渲染映射 (转换器 --render-map 导出)
 

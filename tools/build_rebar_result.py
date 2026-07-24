@@ -110,16 +110,18 @@ def main():
             for comp in ('disp_x', 'disp_y', 'disp_z')}
     print(f"      结果时间步: {nt}")
 
-    # MOOSE 会重排节点编号: 结果 .e 与网格 .e 节点顺序不同,
-    # 用坐标最近邻建立 网格节点id -> 结果行号 的映射
+    # MOOSE 会重排节点编号, 且 v4 求解网格不含 truss 块:
+    # 结果 .e 只有实体节点。只需为实体节点建立 网格id -> 结果行号 映射
     Cr = np.column_stack([nc.variables['coordx'][:].data,
                           nc.variables['coordy'][:].data,
                           nc.variables['coordz'][:].data])
     res_tree = cKDTree(Cr)
-    dd, ii = res_tree.query(C)
-    assert dd.max() < 1e-3, f'网格-结果节点匹配失败: max dist {dd.max()}'
-    mesh2res = ii  # 0-based 结果行号
-    print(f'      节点映射: max dist {dd.max():.2e}')
+    mesh2res = np.zeros(len(C), dtype=int)  # 默认 0 (truss 节点不会被引用)
+    dd, ii = res_tree.query(C[solid_ids - 1])
+    assert dd.max() < 1e-3, f'实体节点匹配失败: max dist {dd.max()}'
+    mesh2res[solid_ids - 1] = ii
+    print(f'      实体节点映射: max dist {dd.max():.2e} '
+          f'({len(solid_ids)}/{len(C)} 节点)')
 
     # 位移按网格节点 id 重排 (result_row = mesh2res[mesh_gid-1])
     for comp in disp:
@@ -210,7 +212,52 @@ def main():
             out[:, j] = U[:, ids - 1] @ w
         disp_i[comp] = out
 
-    # --- 应力: 取 MOOSE 求解的 truss_stress (按质心坐标匹配重排后的单元) ---
+    # --- 应力: 弹塑性模型 (按 Abaqus inp *Plastic 数据, 屈服截断) ---
+    # σ = E·ε (弹性段), |σ| ≤ σ_y + H·ε_p (塑性段), 数据来自 report.json
+    report = json.load(open(OUT / 'report.json'))
+    mats = report.get('materials', {})
+
+    def plastic_curve(mat):
+        """返回 (E, [(ε_total, σ) 递增折线])"""
+        v = mats.get(mat, {})
+        E = v.get('elastic', [[206000.0, 0.3]])[0][0]
+        pl = v.get('plastic') or []
+        pts = [(p[1] + p[0] / E, p[0]) for p in pl]  # 总应变, 应力
+        return E, pts
+
+    def elpl(esp, E, pts):
+        """弹塑性应力 (signed)"""
+        out = np.empty_like(esp)
+        for k, e in np.ndenumerate(esp):
+            s = 1.0 if e >= 0 else -1.0
+            ae = abs(e)
+            sig = E * ae
+            if pts:
+                if ae <= pts[0][0]:
+                    sig = E * ae
+                else:
+                    sig = pts[-1][1] + (ae - pts[-1][0]) * (
+                        (pts[-1][1] - pts[-2][1]) / (pts[-1][0] - pts[-2][0])
+                        if len(pts) > 1 else 0.0)
+                    for j in range(len(pts) - 1):
+                        if pts[j][0] <= ae <= pts[j + 1][0]:
+                            sig = pts[j][1] + (ae - pts[j][0]) * (
+                                pts[j + 1][1] - pts[j][1]) / (
+                                pts[j + 1][0] - pts[j][0])
+                            break
+            out[k] = s * sig
+        return out
+
+    mat_of_block = {b['name']: b['name'].split('__')[-1].split('_A')[0]
+                    for b in rmap['blocks']}
+    stress = np.zeros((nt, len(new_elems)))
+    for ei, (bname, n1, n2, t, L) in enumerate(new_elems):
+        E, pts = plastic_curve(mat_of_block[bname])
+        du = np.column_stack([disp_i['disp_x'][:, n2 - 1] - disp_i['disp_x'][:, n1 - 1],
+                              disp_i['disp_y'][:, n2 - 1] - disp_i['disp_y'][:, n1 - 1],
+                              disp_i['disp_z'][:, n2 - 1] - disp_i['disp_z'][:, n1 - 1]])
+        esp = (du @ t) / L
+        stress[:, ei] = elpl(esp, E, pts)
     elem_names = [''.join(c for c in row.astype('U1') if c).strip()
                   for row in nc.variables['name_elem_var'][:]]
     stress_var = elem_names.index('truss_stress') + 1 \
@@ -218,46 +265,6 @@ def main():
     eb_names_out = [''.join(c for c in row.astype('U1') if c).strip()
                     for row in nc.variables['eb_names'][:]]
 
-    # 网格 .e 中各 truss 块的连接表与质心 (缝合后位置)
-    nm_ = netCDF4.Dataset(str(mesh_path))
-    mesh_truss = {}   # bname -> (conn, centroids)
-    for bi in range(1, len(eb_names_out) + 1):
-        v = f'connect{bi}'
-        if v in nm_.variables and nm_.variables[v].getncattr('elem_type') == 'TRUSS':
-            c_ = nm_.variables[v][:].data
-            mesh_truss[eb_names_out[bi - 1]] = c_
-
-    # 渲染映射元素顺序 == 网格块内行序 (转换器保证); 按质心匹配到结果单元
-    stress = np.zeros((nt, len(new_elems)))
-    stress_lookup = {}  # bname -> 结果 stress 数组 (nt, n_result_elems, 按网格行序重排)
-    for bname, mconn in mesh_truss.items():
-        if stress_var is None or bname not in [b['name'] for b in rmap['blocks']]:
-            continue
-        eb_out = eb_names_out.index(bname) + 1
-        var = f'vals_elem_var{stress_var}eb{eb_out}'
-        if var not in nc.variables:
-            continue
-        svals = nc.variables[var][:].data            # (nt, n_res)
-        rconn = nc.variables[f'connect{eb_out}'][:].data
-        rcent = np.array([Cr[c - 1].mean(axis=0) for c in rconn])
-        mcent = np.array([C[c - 1].mean(axis=0) for c in mconn])
-        tree_ = cKDTree(rcent)
-        dd_, ii_ = tree_.query(mcent)
-        assert dd_.max() < 1e-2, f'{bname} 单元匹配失败: {dd_.max()}'
-        stress_lookup[bname] = svals[:, ii_]         # (nt, n_mesh_rows)
-
-    # new_elems 顺序按块分组填充 (write_exodus 里按块取)
-    elem_block_idx = []   # (bname, 块内行序)
-    row_count = {}
-    for bname, k0, k1, p0, p1 in elems:
-        j = row_count.get(bname, 0)
-        row_count[bname] = j + 1
-        elem_block_idx.append((bname, j))
-    for ei, (bname, j) in enumerate(elem_block_idx):
-        sl = stress_lookup.get(bname)
-        if sl is not None and j < sl.shape[1]:
-            stress[:, ei] = sl[:, j]
-    nm_.close()
 
     print(f"      重构: {nn} 节点, {len(new_elems)} 单元")
     print(f"      应力范围: [{stress.min():.0f}, {stress.max():.0f}] MPa")

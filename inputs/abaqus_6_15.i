@@ -26,11 +26,21 @@
     type = FileMeshGenerator
     file = ../outputs/abaqus_6_15/6-15_mesh.e
   []
+  # v4: 求解不含钢筋 (保持钢筋零丢失; 钢筋位移/应力由宿主插值后处理得到)
+  [del_rebar]
+    type = BlockDeletionGenerator
+    input = file
+    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
+             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
+             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
+             EE_lianjiegangjin__HPB400 Part_23__gangjin
+             gjwl_1__gangjin zgjl__gangjin_A50 zgjl__gangjin_A113'
+  []
   # Pressure BC 需要 sideset: 只转换压力面 nodeset
   # (全部转换会把共享表面节点的 truss 单元 0D 侧面也加入, 导致 Pressure 崩溃)
   [surf_sidesets]
     type = SideSetsFromNodeSetsGenerator
-    input = file
+    input = del_rebar
     nodesets_to_convert = 'SURF__PickedSurf829'
   []
 []
@@ -62,10 +72,6 @@
     order = CONSTANT
     family = MONOMIAL
   []
-  [truss_stress]
-    order = CONSTANT
-    family = MONOMIAL
-  []
 []
 
 # ---------------------------------------------------------------------------
@@ -77,115 +83,10 @@
   []
   # --- 钢筋 TRUSS kernels (按截面积分组, 3 个分量) ---
   # D8 箍筋 A=50.24 mm²
-  [truss_x_A50]
-    type = StressDivergenceTensorsTruss
-    variable = disp_x
-    component = 0
-    area = 50.24
-    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
-  []
-  [truss_y_A50]
-    type = StressDivergenceTensorsTruss
-    variable = disp_y
-    component = 1
-    area = 50.24
-    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
-  []
-  [truss_z_A50]
-    type = StressDivergenceTensorsTruss
-    variable = disp_z
-    component = 2
-    area = 50.24
-    block = 'AA_dinglaing_gujin__gangjin CC_diliang_gujin__gangjin zgjl__gangjin_A50'
-  []
   # D12 纵筋 A=113.04 mm²
-  [truss_x_A113]
-    type = StressDivergenceTensorsTruss
-    variable = disp_x
-    component = 0
-    area = 113.04
-    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
-  []
-  [truss_y_A113]
-    type = StressDivergenceTensorsTruss
-    variable = disp_y
-    component = 1
-    area = 113.04
-    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
-  []
-  [truss_z_A113]
-    type = StressDivergenceTensorsTruss
-    variable = disp_z
-    component = 2
-    area = 113.04
-    block = 'AA_zongjin_D12__gangjin CC_zongjin_D12__gangjin zgjl__gangjin_A113'
-  []
   # D16 纵筋 A=200.96 mm²
-  [truss_x_A201]
-    type = StressDivergenceTensorsTruss
-    variable = disp_x
-    component = 0
-    area = 200.96
-    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
-  []
-  [truss_y_A201]
-    type = StressDivergenceTensorsTruss
-    variable = disp_y
-    component = 1
-    area = 200.96
-    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
-  []
-  [truss_z_A201]
-    type = StressDivergenceTensorsTruss
-    variable = disp_z
-    component = 2
-    area = 200.96
-    block = 'AA_zongjin_D16__gangjin CC_zongjin_D16__gangjin'
-  []
   # HPB400-14 连接筋 A=153.938 mm²
-  [truss_x_A154]
-    type = StressDivergenceTensorsTruss
-    variable = disp_x
-    component = 0
-    area = 153.938
-    block = 'EE_lianjiegangjin__HPB400'
-  []
-  [truss_y_A154]
-    type = StressDivergenceTensorsTruss
-    variable = disp_y
-    component = 1
-    area = 153.938
-    block = 'EE_lianjiegangjin__HPB400'
-  []
-  [truss_z_A154]
-    type = StressDivergenceTensorsTruss
-    variable = disp_z
-    component = 2
-    area = 153.938
-    block = 'EE_lianjiegangjin__HPB400'
-  []
   # D6 构造筋 A=28.26 mm²
-  [truss_x_A28]
-    type = StressDivergenceTensorsTruss
-    variable = disp_x
-    component = 0
-    area = 28.26
-    block = 'Part_23__gangjin gjwl_1__gangjin'
-  []
-  [truss_y_A28]
-    type = StressDivergenceTensorsTruss
-    variable = disp_y
-    component = 1
-    area = 28.26
-    block = 'Part_23__gangjin gjwl_1__gangjin'
-  []
-  [truss_z_A28]
-    type = StressDivergenceTensorsTruss
-    variable = disp_z
-    component = 2
-    area = 28.26
-    block = 'Part_23__gangjin gjwl_1__gangjin'
-  []
 []
 
 [BCs]
@@ -276,17 +177,6 @@
     block = 'BB_qikuai__aac705'
     execute_on = TIMESTEP_END
   []
-  [truss_stress_aux]
-    type = MaterialRealAux
-    variable = truss_stress
-    property = axial_stress
-    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
-             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
-             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
-             EE_lianjiegangjin__HPB400 Part_23__gangjin
-             gjwl_1__gangjin zgjl__gangjin_A50 zgjl__gangjin_A113'
-    execute_on = TIMESTEP_END
-  []
 []
 
 [Materials]
@@ -342,20 +232,6 @@
     block = 'kuang__C40 kuang__M60 DD_gujiangliao__M60 BB_qikuai__aac705'
   []
   # --- 钢筋: truss 线弹性 (gangjin E=206GPa, HPB400 E=200GPa)
-  [truss_steel]
-    type = LinearElasticTruss
-    youngs_modulus = 206000.0
-    block = 'AA_dinglaing_gujin__gangjin AA_zongjin_D12__gangjin
-             AA_zongjin_D16__gangjin CC_diliang_gujin__gangjin
-             CC_zongjin_D12__gangjin CC_zongjin_D16__gangjin
-             Part_23__gangjin gjwl_1__gangjin
-             zgjl__gangjin_A50 zgjl__gangjin_A113'
-  []
-  [truss_steel_hpb]
-    type = LinearElasticTruss
-    youngs_modulus = 200000.0
-    block = 'EE_lianjiegangjin__HPB400'
-  []
 []
 
 [Postprocessors]
@@ -371,10 +247,6 @@
   [damage_max]
     type = ElementExtremeValue
     variable = damage_index
-  []
-  [truss_stress_max]
-    type = ElementExtremeValue
-    variable = truss_stress
   []
 []
 

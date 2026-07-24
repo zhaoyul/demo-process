@@ -67,12 +67,12 @@ renders/abaqus_6_15_damage.mp4         ← 损伤演化动画
 | `Load-1` 压力 0.5MPa `_PickedSurf829` | Step-1 顶面竖向荷载 | `Pressure` BC + ramp 函数 |
 | `BC-2` + `Amp-1` (±16/±20mm) | Step-2 水平循环位移 | `FunctionDirichletBC` + PiecewiseLinear |
 
-### 约束映射 (v3 当前方案)
+### 约束映射 (v4 当前方案)
 
 | Abaqus 约束 | MOOSE/转换器等效 |
 |------------|-----------------|
 | `*Tie, adjust=yes` ×9 (界面绑定) | 转换器节点缝合: slave 面节点并入最近 master 节点 (`--tie-tol`), 带防翻转精确检查 (union 整体试移 + 全部关联 hex 角点 det(J)>0 校验) |
-| `*Embedded Element` (Constraint-4, 钢筋嵌入) | **求解**: 钢筋节点缝合至最近实体节点共享自由度 (位移耦合 + truss 刚度真实传递, `axial_stress` 输出为 `truss_stress` 场); **渲染**: `tools/build_rebar_result.py` 按宿主单元形函数插值重构钢筋位移 (`u_rebar = Σ N_i·u_solid_i`, 凸组合 ⇒ 位移不越出墙体、直线不折弯), 几何回弹到原始直线, 应力取求解的 `truss_stress` (按质心坐标匹配 MOOSE 重排的单元) |
+| `*Embedded Element` (Constraint-4, 钢筋嵌入) | **求解**: 纯实体求解 (钢筋不进求解网格, 零单元删除 ⇒ 钢筋笼无断点); **后处理**: `tools/build_rebar_result.py` 对全部 6110 个钢筋单元做宿主单元形函数插值 (`u_rebar = Σ N_i·u_solid_i`, 凸组合 ⇒ 不越出墙体、直线不折弯), 应力按 inp `*Plastic` 弹塑性曲线计算 (gangjin 300→360, HPB400 400→540, 屈服截断) |
 | `*Coupling, *Kinematic` (Constraint-17, rp→加载面) | 加载面整体 `DirichletBC` (对被驱动自由度 U1 与运动耦合等效) |
 | cohesive 接触 (灰缝) | **简化**: 单体化 + AAC 块 prescribed scalar damage |
 

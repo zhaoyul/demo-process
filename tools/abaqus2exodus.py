@@ -1239,6 +1239,15 @@ def main():
     # *Embedded Element 等效: 钢筋节点缝合至最近实体节点
     if args.no_rebar_stitch:
         rebar_stitched, rebar_dropped, rebar_maxd = 0, 0, 0.0
+        # 不缝合也快照全部钢筋几何 (v4: 求解不含钢筋, 渲染全量保留)
+        truss_orig = {}
+        truss_orig_coords = {}
+        for b, elems in blocks.items():
+            if block_etype[b] == 'TRUSS':
+                truss_orig[b] = list(elems)
+                truss_orig_coords[b] = {
+                    eid: (gm.coords[conn[0] - 1], gm.coords[conn[1] - 1])
+                    for eid, conn in elems}
     else:
         # 快照原始钢筋几何 (渲染映射用)
         truss_orig = {}
@@ -1256,8 +1265,8 @@ def main():
               f"(最大距离 {rebar_maxd:.1f}), 剔除零长度单元 {rebar_dropped}, "
               f"压实后节点={len(gm.coords)}")
 
-    # 渲染映射: 原始直线钢筋单元 → 缝合后最终节点 (渲染时按位移场回弹)
-    if args.render_map and rebar_stitched:
+    # 渲染映射: 原始直线钢筋单元 → 求解网格节点 (渲染时按位移场回弹)
+    if args.render_map and (rebar_stitched or args.no_rebar_stitch):
         rmap = {'blocks': []}
         for b, orig_elems in truss_orig.items():
             final_by_eid = {eid: conn for eid, conn in blocks.get(b, [])}
