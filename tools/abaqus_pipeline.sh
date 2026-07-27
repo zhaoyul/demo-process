@@ -29,6 +29,7 @@ SOLVER="${HONGCHUANG_OPT:-$ROOT/bin/hongchuang-opt}"
 INP="" NAME="" MOOSE_I="" RENDER_SCRIPT=""
 MERGE_TOL=0.5 TIE_TOL=20.0
 SKIP_SOLVE=0 FROM_STAGE=1
+ADD_NODESETS=()
 
 usage() { sed -n '2,24p' "$0"; exit 1; }
 while [ $# -gt 0 ]; do
@@ -39,6 +40,7 @@ while [ $# -gt 0 ]; do
     --render-script) RENDER_SCRIPT="$2"; shift 2;;
     --merge-tol) MERGE_TOL="$2"; shift 2;;
     --tie-tol) TIE_TOL="$2"; shift 2;;
+    --add-nodeset) ADD_NODESETS+=("$2"); shift 2;;
     --skip-solve) SKIP_SOLVE=1; shift;;
     --from-stage) FROM_STAGE="$2"; shift 2;;
     -h|--help) usage;;
@@ -63,13 +65,18 @@ echo "输出:   $OUTDIR"
 # --- 阶段 1: 转换 -------------------------------------------------------
 if [ "$FROM_STAGE" -le 1 ]; then
   echo "[1/4] 转换 .inp → Exodus II ..."
+  CONV_EXTRA=()
+  for s in ${ADD_NODESETS[@]+"${ADD_NODESETS[@]}"}; do
+    CONV_EXTRA+=(--add-nodeset "$s")
+  done
   "$PY" "$ROOT/tools/abaqus2exodus.py" \
       --inp "$INP" \
       --out "$MESH" \
       --report "$REPORT" \
       --render-map "$RMAP" \
       --merge-tol "$MERGE_TOL" \
-      --tie-tol "$TIE_TOL"
+      --tie-tol "$TIE_TOL" \
+      ${CONV_EXTRA[@]+"${CONV_EXTRA[@]}"}
   echo "      → $MESH"
   echo "      → $REPORT (材料/边界/荷载/分析步 — 编写 .i 的依据)"
 fi

@@ -1191,6 +1191,10 @@ def main():
                     help='导出钢筋 embedded MPC 约束片段 (LinearNodalConstraint)')
     ap.add_argument('--render-map', metavar='OUT_JSON',
                     help='导出原始钢筋几何→缝合节点渲染映射 (配合钢筋缝合)')
+    ap.add_argument('--add-nodeset', action='append', default=[],
+                    metavar='NAME:BLOCK:COND',
+                    help="按几何条件追加 nodeset, 如 'CAOSHEN_TOP:caoshen__con:z>=3940' "
+                         "(COND 支持 x/y/z 与 >= <= == > <; 可重复; 用于接触/绑定界面)")
     args = ap.parse_args()
 
     print(f"[1/3] 解析 {args.inp} ...")
@@ -1291,6 +1295,26 @@ def main():
             gm, blocks, block_etype, args.mpc)
         print(f"      MPC 约束: {n_tot} 个钢筋节点 "
               f"(插值 {n_interp}, 最近点退化 {n_degen}) → {args.mpc}")
+
+    # 追加几何条件 nodeset (接触/绑定界面, 供 TiedValueConstraint 等使用)
+    for spec in args.add_nodeset:
+        import re as _re
+        m = _re.match(r'([^:]+):([^:]+):(x|y|z)(>=|<=|==|>|<)([-\d.eE]+)', spec)
+        if not m:
+            raise SystemExit(f'✗ 无法解析 --add-nodeset: {spec}')
+        name, blk, axis, op, val = m.groups()
+        val = float(val)
+        if blk not in blocks:
+            raise SystemExit(f'✗ 块不存在: {blk} (可选: {sorted(blocks)})')
+        nodes = sorted({n for _, conn in blocks[blk] for n in conn})
+        a = 'xyz'.index(axis)
+        ops = {'>=': lambda c: c >= val, '<=': lambda c: c <= val,
+               '==': lambda c: abs(c - val) < 1e-6,
+               '>': lambda c: c > val, '<': lambda c: c < val}
+        sel = [n for n in nodes if ops[op](gm.coords[n - 1][a])]
+        nodesets[sanitize(name)] = sel
+        print(f'      追加 nodeset {sanitize(name)}: block={blk} '
+              f'{axis}{op}{val} → {len(sel)} 节点')
 
     print(f"[3/3] 写出 Exodus: {args.out}")
     write_exodus(args.out, gm, blocks, block_etype, block_meta, nodesets,

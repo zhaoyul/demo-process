@@ -85,3 +85,32 @@ tools/abaqus_pipeline.sh --inp ... --name ... --skip-solve
 | pvpython | `~/miniforge3/envs/moose/bin/pvpython` (`MOOSE_PVPYTHON`) |
 | MOOSE 求解器 | `bin/hongchuang-opt` (`HONGCHUANG_OPT`) |
 | Abaqus 数据源 | `/home/kevin/Abaqus/` (外部引用, 大文件不进 git) |
+
+## 五、8elc 实战增补经验 (2026-07-27, 地震动算例)
+
+第二算例 8elc (排架-槽身-钢梁, 三向 El Centro 基底加速度) 验证了流水线,
+同时暴露了 6-15 未覆盖的问题。新增经验:
+
+| # | 问题 | 方案 | 工具/配置 |
+|---|------|------|-----------|
+| 11 | inp 为 GBK 编码且含全角字符 (如 instance 名 `caoshen（dangkuai`) | 先 `iconv -f GBK -t UTF-8` 再进流水线 | 预处理一步 |
+| 12 | 上部结构仅靠**接触对**支撑, 网格非匹配无共享节点 → 求解中自由坠落 (-69000mm!) | **界面缝合**: slave 面节点并入最近宿主节点 + det(J) 防翻转回滚 + 跨空段跳过 (槽身底面只有支座区该缝, 跨中段跳过) | `tools/stitch_interface.py` |
+| 13 | TiedValueConstraint 救治界面连接 | **否决**: 定点迭代式收敛 (~0.75/it), 50s/步且中途失收; 需 `primary_variable` 否则段错误 | 不要用 |
+| 14 | LinearNodalConstraint 救治界面连接 | **否决**: 本版 MOOSE 雅可比装配问题, 精确线性解后 Newton 方向不降低残差 | 不要用 |
+| 15 | 界面界面侧 nodeset 覆盖不全 (Abaqus 面补丁只有 4-16 节点) | 转换器 `--add-nodeset 'NAME:BLOCK:z>=3940'` 按几何条件生成完整界面集 | abaqus2exodus.py |
+| 16 | 钢梁仅部分缝合 (40/80 节点) + 施加重力 → 铰接下垂伪影 | 部分缝合的附属构件**不施加重力** (质量小, 由锚点驱动) | .i 中省略 BodyForce |
+| 17 | 线性动力问题 (线弹性+Newmark) PJFNK 每步 ~50 次残差估值 | `solve_type = NEWTON` (真雅可比, 1 Newton/步), 提速 4.4 倍; mpiexec -n 6 再提 2 倍 | Executioner |
+| 18 | 基底加速度输入 | `PresetAcceleration` (注意不是 PrescribedAcceleration!) + `PiecewiseLinear data_file` 读 CSV + `scale_factor` 统一放大; 需 vel/accel aux + NewmarkVelAux/NewmarkAccelAux (后者需 velocity 参数) | .i 模板 |
+| 19 | 重力突变引起无阻尼系统振铃 | BodyForce + ParsedFunction 爬坡 (0→0.5s) | .i 模板 |
+| 20 | 长时程隐式动力成本 (13.75s × dt=0.00125 = 11000 步不可行) | 按幅值 >10% 峰值窗口截取强震段 (8elc: 0-4s), dt=0.005 | report.json 幅值分析 |
+| 21 | 地震结果判读: NodalExtremeValue 含基底节点 → 绝对位移是地面运动 | **必须看相对位移** (顶部位移 - 基底均值) | 校验脚本 |
+| 22 | 渲染对比度: 全时段色标范围按峰值设 → 大部分帧全蓝 | 峰值时刻试渲染单帧定色标; 地震小位移 warp ×50; HiDPI X 会话输出分辨率会放大 ~6 倍 | 渲染脚本 |
+
+**界面连接决策树** (非匹配网格):
+1. 两界面共面近距 → `stitch_interface.py` 缝合 (首选, 纯线性, 已验证 ×2)
+2. 跨空段自动跳过 (>tol 不缝, 物理正确)
+3. 约束法 (TiedValueConstraint/LinearNodalConstraint) 当前版本均不可用, 勿踩
+
+**可复用产物**: `inputs/abaqus_8elc.i` 是地震动算例模板 (PresetAcceleration
++ Newmark + 重力爬坡 + NEWTON/MUMPS), `tools/stitch_interface.py` 与
+`--add-nodeset` 已并入流水线 (abaqus_pipeline.sh 透传)。
