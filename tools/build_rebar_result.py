@@ -17,9 +17,13 @@
 输出:
   outputs/abaqus_6_15/rebar_result.e        原始几何 + 插值位移 + 重算应力
 
-用法: ~/miniforge3/envs/moose/bin/python tools/build_rebar_result.py
+用法 (6-15 默认路径, 全部参数可覆盖以复用于其他算例):
+  ~/miniforge3/envs/moose/bin/python tools/build_rebar_result.py \
+      [--mesh MESH.e] [--result OUT.e] [--render-map MAP.json] \
+      [--report REPORT.json] [--out REBAR_RESULT.e]
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -82,10 +86,24 @@ def compute_weights(pt, C, conn, cent_tree, cents, radii, solid_tree, solid_ids)
 
 
 def main():
-    mesh_path = OUT / "6-15_mesh.e"
-    res_path = OUT / "abaqus_6_15_out.e"
-    map_path = OUT / "rebar_render_map.json"
-    dst_path = OUT / "rebar_result.e"
+    ap = argparse.ArgumentParser(description='钢筋结果重构 (宿主单元插值)')
+    ap.add_argument('--mesh', default=str(OUT / "6-15_mesh.e"),
+                    help='转换后网格 .e (实体宿主)')
+    ap.add_argument('--result', default=str(OUT / "abaqus_6_15_out.e"),
+                    help='MOOSE 求解结果 .e (位移场)')
+    ap.add_argument('--render-map', default=str(OUT / "rebar_render_map.json"),
+                    help='abaqus2exodus.py --render-map 产物 (原始钢筋几何)')
+    ap.add_argument('--report', default=str(OUT / "report.json"),
+                    help='abaqus2exodus.py --report 产物 (材料表)')
+    ap.add_argument('--out', default=str(OUT / "rebar_result.e"),
+                    help='输出: 原始几何 + 插值位移 + 重算应力')
+    args = ap.parse_args()
+
+    mesh_path = Path(args.mesh)
+    res_path = Path(args.result)
+    map_path = Path(args.render_map)
+    report_path = Path(args.report)
+    dst_path = Path(args.out)
 
     print("[1/4] 加载实体网格与渲染映射 ...")
     C, conn = load_solid(mesh_path)
@@ -214,7 +232,7 @@ def main():
 
     # --- 应力: 弹塑性模型 (按 Abaqus inp *Plastic 数据, 屈服截断) ---
     # σ = E·ε (弹性段), |σ| ≤ σ_y + H·ε_p (塑性段), 数据来自 report.json
-    report = json.load(open(OUT / 'report.json'))
+    report = json.load(open(report_path))
     mats = report.get('materials', {})
 
     def plastic_curve(mat):
