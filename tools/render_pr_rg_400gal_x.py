@@ -24,8 +24,8 @@ RENDERS.mkdir(exist_ok=True)
 RESULT = sys.argv[1] if len(sys.argv) > 1 else str(OUTDIR / "pr_rg_400gal_x_out.e")
 
 FPS = 25
-SUBSAMPLE = 20          # 抽帧
-RES = [1600, 900]
+SUBSAMPLE = 33          # 抽帧 (系统高负载, 减帧)
+RES = [1280, 720]
 HEIGHT = 17360.0        # 结构高度 (mm)
 
 # 自动估算变形放大倍数: 峰值位移 → 结构高度的 ~8%
