@@ -67,6 +67,8 @@ class Part:
         self.nsets = {}
         self.elsets = {}
         self.sections = []       # [(elset, material, area)]
+        self.beam_sections = []  # [{elset, material, section, dims, n1}]
+        self.releases = []       # [(eid, end, code)]  *RELEASE 端部释放
 
 
 class Instance:
@@ -93,6 +95,12 @@ class InpModel:
         self.ties = []
         self.couplings = []
         self.embedded = []
+        self.mpcs = []           # [{type, slave, master}]  *MPC 数据行
+        self.asm_elems = {}      # assembly 级元素: elset -> {eid: [nids]} (MASS/ROTARYI)
+        self.asm_elem_types = {} # elset -> 元素类型 (MASS/ROTARYI)
+        self.asm_mass = {}       # elset -> 质量值 *Mass
+        self.asm_rotary = {}     # elset -> [I11,I22,I33,I12,I13,I23] *Rotary Inertia
+        self.nonstruct_mass = [] # [{elset, units, value}] *Nonstructural Mass
 
 
 # Abaqus C3D8 各面的局部节点 (1-based, 仅用于取节点集合, 不关心绕向)
@@ -174,13 +182,131 @@ def parse_inp(path):
             elif kw_name == 'element':
                 if cur_part is not None:
                     cur_part.etype = kv.get('type', '').upper()
-                cur_nset = ('elems', None, kv.get('instance'), False)
+                    cur_nset = ('elems', None, kv.get('instance'), False)
+                else:
+                    # assembly 级元素 (MASS / ROTARYI 等): elset 名存入 name 槽
+                    es = kv.get('elset')
+                    if es:
+                        m.asm_elem_types[es] = kv.get('type', '').upper()
+                    cur_nset = ('elems', es, None, False)
             elif kw_name in ('nset', 'elset'):
                 name = kv.get('nset') or kv.get('elset')
                 gen = 'generate' in kv
                 inst = kv.get('instance')
                 kind = 'nset' if kw_name == 'nset' else 'elset'
                 cur_nset = (kind, name, inst, gen)
+            elif kw_name == 'beam section':
+                # 数据行 1: 截面尺寸; 数据行 2: n1 方向矢量
+                dl = []
+                while i < n and len(dl) < 2:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    dl.append(ln.strip())
+                    i += 1
+                dims = _nums(dl[0]) if dl else []
+                n1v = _nums(dl[1]) if len(dl) > 1 else []
+                if cur_part is not None:
+                    cur_part.beam_sections.append({
+                        'elset': kv.get('elset'),
+                        'material': kv.get('material'),
+                        'section': (kv.get('section') or '').upper(),
+                        'dims': dims, 'n1': n1v})
+            elif kw_name == 'release':
+                # 数据行: eid,端点(s1/s2),释放代码 (如 allm)
+                while i < n:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    toks = [t.strip() for t in ln.rstrip(',').split(',')]
+                    try:
+                        eid = int(float(toks[0]))
+                        if cur_part is not None:
+                            cur_part.releases.append(
+                                (eid, toks[1] if len(toks) > 1 else '',
+                                 toks[2] if len(toks) > 2 else ''))
+                    except (ValueError, IndexError):
+                        pass
+                    i += 1
+            elif kw_name == 'mpc':
+                # 数据行: 类型,从集,主集 (如 BEAM, _PickedSet171, _PickedSet172)
+                while i < n:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    toks = [t.strip() for t in ln.rstrip(',').split(',')
+                            if t.strip()]
+                    if len(toks) >= 3:
+                        m.mpcs.append({'type': toks[0].upper(),
+                                       'slave': toks[1], 'master': toks[2]})
+                    i += 1
+            elif kw_name == 'mass':
+                # 数据行: 质量值 (assembly 级, elset 指向 MASS 元素集)
+                while i < n:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    try:
+                        m.asm_mass[kv.get('elset')] = _nums(ln)[0]
+                    except (ValueError, IndexError):
+                        pass
+                    i += 1
+            elif kw_name == 'rotary inertia':
+                # 数据行: I11 I22 I33 I12 I13 I23
+                while i < n:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    try:
+                        m.asm_rotary[kv.get('elset')] = _nums(ln)
+                    except (ValueError, IndexError):
+                        pass
+                    i += 1
+            elif kw_name == 'nonstructural mass':
+                # 数据行: 每单位长度/面积质量
+                while i < n:
+                    ln = raw[i]
+                    if not ln.strip() or ln.startswith('**'):
+                        i += 1
+                        continue
+                    if ln.strip().startswith('*'):
+                        break
+                    try:
+                        m.nonstruct_mass.append({
+                            'elset': kv.get('elset'),
+                            'units': kv.get('units'),
+                            'value': _nums(ln)[0]})
+                    except (ValueError, IndexError):
+                        pass
+                    i += 1
+            elif kw_name == 'dynamic':
+                if cur_step is not None:
+                    while i < n and (not raw[i].strip()
+                                     or raw[i].startswith('**')):
+                        i += 1
+                    if i < n and not raw[i].strip().startswith('*'):
+                        cur_step['dynamic'] = _nums(raw[i])
+                        i += 1
+            elif kw_name == 'damping' and cur_mat is not None:
+                # Rayleigh 阻尼在 kwargs 中 (alpha/beta), 无数据行
+                m.materials[cur_mat]['damping'] = {
+                    k: float(v) for k, v in kv.items()
+                    if k in ('alpha', 'beta')}
             elif kw_name == 'solid section':
                 # 数据行在下一行 (桁架为截面积)
                 data = ''
@@ -271,6 +397,8 @@ def parse_inp(path):
                     vals = _ids(line)
                     if cur_part is not None:
                         cur_part.elems[vals[0]] = vals[1:]
+                    elif name:
+                        m.asm_elems.setdefault(name, {})[vals[0]] = vals[1:]
                 elif kind in ('nset', 'elset'):
                     ids = _ids(line)
                     if gen:
@@ -379,6 +507,20 @@ def _rot_matrix(axis, angle_deg):
     ]
 
 
+def rotate_vector(v, inst):
+    """将方向矢量按 instance 旋转 (不平移) 到全局坐标系"""
+    if not inst.rot:
+        return tuple(v)
+    ax, ay, az, bx, by, bz, ang = inst.rot
+    R = _rot_matrix((bx - ax, by - ay, bz - az), ang)
+    if not R:
+        return tuple(v)
+    x, y, z = v[0], v[1], v[2]
+    return (R[0][0] * x + R[0][1] * y + R[0][2] * z,
+            R[1][0] * x + R[1][1] * y + R[1][2] * z,
+            R[2][0] * x + R[2][1] * y + R[2][2] * z)
+
+
 def transform_point(xyz, inst):
     # Abaqus *Instance 语义: 先平移, 再绕 (平移后坐标系中的) 轴 a→b 旋转
     # (旋转轴两点 a, b 以装配/全局坐标给出, 已用 6-15.inp 实测验证)
@@ -472,6 +614,9 @@ class GlobalMesh:
 
 def build_global_mesh(model, tol):
     gm = GlobalMesh(tol)
+    gm.elem_origin = {}          # 全局单元 id -> (instance, part 单元 id)
+    gm.elem_block = {}           # 全局单元 id -> block 名
+    gm.block_beam = {}           # block -> {material, section, dims, n1}
     blocks = defaultdict(list)    # block_name -> [(elem_global_id, [gids])]
     block_etype = {}
     block_meta = {}               # block -> (part, material)
@@ -498,20 +643,79 @@ def build_global_mesh(model, tol):
         # 同一 part 多个截面积时需按面积分块 (如 zgjl: D8+D12)
         part_areas = {a for _, _, a in part.sections if a is not None}
         multi_area = len(part_areas) > 1
+        # 梁截面: eid -> 截面索引
+        el2sec = {}
+        for si, bs in enumerate(part.beam_sections):
+            for eid in part.elsets.get(bs['elset'] or '', []):
+                el2sec[eid] = si
+        sec_key2name = {}        # 截面 key -> block 名 (同 part 内)
         for eid, conn in part.elems.items():
             elem_counter += 1
             mat, area = el2mat.get(eid, ('UNASSIGNED', None))
-            if part.etype == 'C3D8R':
+            beam_meta = None
+            if part.etype == 'B31':
+                exo_type = 'BEAM2'
+            elif part.etype == 'C3D8R':
                 exo_type = 'HEX8'
             elif part.etype == 'T3D2':
                 exo_type = 'TRUSS'
             else:
                 exo_type = part.etype or 'UNKNOWN'
-            area_tag = f"_A{int(round(area))}" if (multi_area and area) else ''
-            bname = sanitize(f"{_shorten(re.sub(r'[^A-Za-z0-9_]', '_', inst.part), MAX_NAME - len(str(mat)) - 2 - len(area_tag))}__{mat}{area_tag}")
+            if part.beam_sections and part.etype == 'B31':
+                si = el2sec.get(eid)
+                if si is not None:
+                    bs = part.beam_sections[si]
+                    n1g = rotate_vector(bs['n1'], inst)
+                    # 单元轴向 (全局)
+                    p0 = gm.coords[local2g[conn[0]] - 1]
+                    p1 = gm.coords[local2g[conn[1]] - 1]
+                    t = [p1[k] - p0[k] for k in range(3)]
+                    tl = math.sqrt(sum(c * c for c in t)) or 1.0
+                    t = [c / tl for c in t]
+                    # n1 投影到垂直于轴的平面 (同 Abaqus 投影语义)
+                    d = sum(n1g[k] * t[k] for k in range(3))
+                    proj = [n1g[k] - d * t[k] for k in range(3)]
+                    pl = math.sqrt(sum(c * c for c in proj))
+                    if pl < 1e-6:
+                        # n1 ∥ 轴: 任取垂直矢量
+                        proj = [-t[1], t[0], 0.0]
+                        pl = math.sqrt(sum(c * c for c in proj))
+                        if pl < 1e-6:
+                            proj = [0.0, -t[2], t[1]]
+                            pl = math.sqrt(sum(c * c for c in proj))
+                    n1_eff = tuple(round(c / pl, 6) for c in proj)
+                    key = (bs['material'], bs['section'],
+                           tuple(bs['dims']), n1_eff,
+                           tuple(round(c, 5) for c in t))
+                    if key not in sec_key2name:
+                        sect = (f"{bs['section']}"
+                                f"_g{len(sec_key2name) + 1}")
+                        clean = re.sub(r'[^A-Za-z0-9_]', '_', inst.part)
+                        pshort = _shorten(
+                            clean, MAX_NAME - len(str(bs['material']))
+                            - len(sect) - 3)
+                        sec_key2name[key] = sanitize(
+                            f"{pshort}__{bs['material']}_{sect}")
+                        gm.block_beam[sec_key2name[key]] = {
+                            'material': bs['material'],
+                            'section': bs['section'],
+                            'dims': bs['dims'], 'n1': list(n1_eff)}
+                    bname = sec_key2name[key]
+                    beam_meta = gm.block_beam[bname]
+                else:
+                    clean = re.sub(r'[^A-Za-z0-9_]', '_', inst.part)
+                    bname = sanitize(
+                        f"{_shorten(clean, MAX_NAME - 13)}__UNASSIGNED")
+            else:
+                area_tag = (f"_A{int(round(area))}"
+                            if (multi_area and area) else '')
+                bname = sanitize(f"{_shorten(re.sub(r'[^A-Za-z0-9_]', '_', inst.part), MAX_NAME - len(str(mat)) - 2 - len(area_tag))}__{mat}{area_tag}")
             blocks[bname].append((elem_counter, [local2g[n] for n in conn]))
             block_etype[bname] = exo_type
-            block_meta[bname] = (inst.part, mat)
+            block_meta[bname] = (inst.part, mat if beam_meta is None
+                                 else beam_meta['material'])
+            gm.elem_origin[elem_counter] = (inst.name, eid)
+            gm.elem_block[elem_counter] = bname
 
     # assembly 级节点 (参考点)
     for nid, xyz in model.asm_nodes.items():
@@ -527,13 +731,15 @@ def build_global_mesh(model, tol):
                 for i in ids]
         nodesets[sanitize(name)] = sorted(g for g in gids if g)
 
-    # 2) instance 限定的 nset/elset
+    # 2) instance 限定的 nset/elset (instance 名按预算缩短, 保留集合名)
     for name, per_inst in model.asm_node_nsets.items():
         for inst, ids in per_inst.items():
             gids = [gm.node_map.get((inst, i)) for i in ids]
             gids = [g for g in gids if g]
             if gids:
-                nodesets[sanitize(f"{name}__{inst}")] = sorted(set(gids))
+                iclean = re.sub(r'[^A-Za-z0-9_]', '_', inst)
+                nodesets[sanitize(
+                    f"{name}__{_shorten(iclean, MAX_NAME - len(name) - 2)}")] = sorted(set(gids))
     for name, per_inst in model.asm_elsets.items():
         nodes = set()
         for inst, ids in per_inst.items():
@@ -601,7 +807,7 @@ def apply_tie_stitch(model, gm, blocks, block_etype, nodesets, tie_tol,
     blacklist = blacklist or set()
     ties = [t for t in model.ties if t.get('slave') and t.get('master')]
     if not ties:
-        return 0, 0
+        return 0, 0, set()
 
     nn = len(gm.coords)
     parent = list(range(nn + 1))
@@ -1176,6 +1382,62 @@ def write_exodus(path, gm, blocks, block_etype, block_meta, nodesets, title):
 # main
 # ---------------------------------------------------------------------------
 
+def _resolve_point_props(model, gm):
+    """*Mass / *Rotary Inertia → 全局节点 (供 MOOSE NodalKernel)"""
+    out = []
+    for elset, val in model.asm_mass.items():
+        for eid, conn in model.asm_elems.get(elset, {}).items():
+            gid = (gm.asm_node_map.get(conn[0])
+                   or gm.node_map.get(('__assembly__', conn[0])))
+            if gid:
+                out.append({'kind': 'mass', 'gid': gid, 'mass': val,
+                            'xyz': list(gm.coords[gid - 1])})
+    for elset, vals in model.asm_rotary.items():
+        for eid, conn in model.asm_elems.get(elset, {}).items():
+            gid = (gm.asm_node_map.get(conn[0])
+                   or gm.node_map.get(('__assembly__', conn[0])))
+            if gid:
+                out.append({'kind': 'rotary', 'gid': gid, 'inertia': vals,
+                            'xyz': list(gm.coords[gid - 1])})
+    return out
+
+
+def _resolve_releases(model, gm):
+    """*RELEASE → 全局单元 id 列表 [{geid, end, code}]"""
+    origin2geid = {v: k for k, v in gm.elem_origin.items()}
+    out = []
+    for p in model.parts.values():
+        for eid, end, code in p.releases:
+            for inst in model.instances:
+                if inst.part != p.name:
+                    continue
+                geid = origin2geid.get((inst.name, eid))
+                if geid:
+                    out.append({'geid': geid, 'end': end, 'code': code})
+    return out
+
+
+def _resolve_nonstruct(model, gm):
+    """*Nonstructural Mass → 每 block 元素计数 (供附加密度换算)"""
+    origin2geid = {v: k for k, v in gm.elem_origin.items()}
+    out = []
+    for entry in model.nonstruct_mass:
+        per_block = {}
+        missing = 0
+        for inst, eids in model.asm_elsets.get(entry['elset'], {}).items():
+            for eid in eids:
+                geid = origin2geid.get((inst, eid))
+                if geid is None:
+                    missing += 1
+                    continue
+                b = gm.elem_block.get(geid)
+                per_block[b] = per_block.get(b, 0) + 1
+        out.append({'elset': entry['elset'], 'units': entry['units'],
+                    'value': entry['value'], 'per_block': per_block,
+                    'missing': missing})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description='Abaqus .inp → Exodus II 转换器')
     ap.add_argument('--inp', required=True, help='Abaqus 输入文件')
@@ -1316,6 +1578,75 @@ def main():
         print(f'      追加 nodeset {sanitize(name)}: block={blk} '
               f'{axis}{op}{val} → {len(sel)} 节点')
 
+    # *MPC BEAM: 生成主-从刚性连杆 (spider) 单元, 等效刚体运动约束
+    mpc_links = []
+    if model.mpcs:
+        def _resolve_nset(name):
+            if name in model.asm_node_nsets:
+                g = []
+                for inst, ids in model.asm_node_nsets[name].items():
+                    for nid in ids:
+                        gid = gm.node_map.get((inst, nid))
+                        if gid:
+                            g.append(gid)
+                return sorted(set(g))
+            if name in model.asm_nsets:
+                g = [gm.asm_node_map.get(i)
+                     or gm.node_map.get(('__assembly__', i))
+                     for i in model.asm_nsets[name]]
+                return sorted(set(x for x in g if x))
+            return []
+        eid_max = max((e for elems in blocks.values() for e, _ in elems),
+                      default=0)
+        mpc_group = {}           # (轴向, n1) -> block 名
+        for mpc in model.mpcs:
+            if mpc['type'] != 'BEAM':
+                print(f"      WARN: 不支持的 MPC 类型 {mpc['type']}, 跳过",
+                      file=sys.stderr)
+                continue
+            slaves = _resolve_nset(mpc['slave'])
+            masters = _resolve_nset(mpc['master'])
+            if not slaves or not masters:
+                print(f"      WARN: MPC {mpc['slave']}/{mpc['master']} "
+                      f"解析为空, 跳过", file=sys.stderr)
+                continue
+            m0 = masters[0]
+            for s in slaves:
+                if s == m0:
+                    continue
+                # 按连杆轴向分组, 取垂直 y_orientation (MOOSE 要求)
+                p0 = gm.coords[s - 1]
+                p1 = gm.coords[m0 - 1]
+                t = [p1[k] - p0[k] for k in range(3)]
+                tl = math.sqrt(sum(c * c for c in t)) or 1.0
+                t = tuple(round(c / tl, 6) for c in t)
+                ref = [1.0, 0.0, 0.0]
+                d = sum(ref[k] * t[k] for k in range(3))
+                proj = [ref[k] - d * t[k] for k in range(3)]
+                pl = math.sqrt(sum(c * c for c in proj))
+                if pl < 1e-6:
+                    proj = [0.0, 1.0, 0.0]
+                    d = sum(proj[k] * t[k] for k in range(3))
+                    proj = [proj[k] - d * t[k] for k in range(3)]
+                    pl = math.sqrt(sum(c * c for c in proj))
+                n1 = [round(c / pl, 6) for c in proj]
+                nb = mpc_group.setdefault(
+                    (t, tuple(n1)), f"mpc_beam_links_g{len(mpc_group) + 1}")
+                eid_max += 1
+                blocks[nb].append((eid_max, [s, m0]))
+                gm.elem_block[eid_max] = nb
+                gm.block_beam[nb] = {'material': 'reactor',
+                                     'section': 'RIGID', 'dims': [],
+                                     'n1': n1}
+                mpc_links.append({'slave': s, 'master': m0, 'block': nb})
+        if mpc_links:
+            for nb in set(gm.elem_block[e] for e in gm.elem_block
+                          if gm.elem_block[e].startswith('mpc_beam_links')):
+                block_etype[nb] = 'BEAM2'
+                block_meta[nb] = ('__mpc__', 'RIGID')
+            print(f"      MPC BEAM: 生成 {len(mpc_links)} 根刚性连杆 "
+                  f"({len(mpc_group)} 个方向组)")
+
     print(f"[3/3] 写出 Exodus: {args.out}")
     write_exodus(args.out, gm, blocks, block_etype, block_meta, nodesets,
                  args.inp)
@@ -1347,6 +1678,14 @@ def main():
         'ties': model.ties,
         'couplings': model.couplings,
         'embedded': model.embedded,
+        'beam_sections': getattr(gm, 'block_beam', {}),
+        'mpcs': model.mpcs,
+        'mpc_links': mpc_links,
+        'releases': {p.name: p.releases
+                     for p in model.parts.values() if p.releases},
+        'releases_global': _resolve_releases(model, gm),
+        'point_mass': _resolve_point_props(model, gm),
+        'nonstructural_mass': _resolve_nonstruct(model, gm),
     }
     if args.report:
         with open(args.report, 'w', encoding='utf-8') as f:
