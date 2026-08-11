@@ -142,6 +142,8 @@ def parse_inp(path):
     cur_step = None
     cur_nset = None          # (dict, name, instance, is_generate, is_node)
     cur_surf = None
+    pending_constraint = None  # '** Constraint: <name>' 注释暂存
+    cur_constraint = None      # 当前关键字所属约束名
 
     def close_data_block():
         nonlocal cur_nset, cur_surf, cur_mat_key, cur_amp
@@ -156,12 +158,17 @@ def parse_inp(path):
         if not line.strip():
             continue
         if line.startswith('**'):
+            cm = re.match(r'^\*\*\s*Constraint:\s*(.+?)\s*$', line)
+            if cm:
+                pending_constraint = cm.group(1)
             continue
         if line.startswith('*'):
             kw_line = line[1:].strip()
             kw_name = kw_line.split(',')[0].strip().lower()
             kv = _parse_kv(kw_line[len(kw_line.split(',')[0]):].lstrip(','))
             close_data_block()
+            # '** Constraint:' 注释归属于紧随其后的关键字块
+            cur_constraint, pending_constraint = pending_constraint, None
 
             if kw_name == 'part':
                 cur_part = Part(kv['name'])
@@ -247,7 +254,8 @@ def parse_inp(path):
                             if t.strip()]
                     if len(toks) >= 3:
                         m.mpcs.append({'type': toks[0].upper(),
-                                       'slave': toks[1], 'master': toks[2]})
+                                       'slave': toks[1], 'master': toks[2],
+                                       'constraint': cur_constraint})
                     i += 1
             elif kw_name == 'mass':
                 # 数据行: 质量值 (assembly 级, elset 指向 MASS 元素集)
@@ -1457,6 +1465,9 @@ def main():
                     metavar='NAME:BLOCK:COND',
                     help="按几何条件追加 nodeset, 如 'CAOSHEN_TOP:caoshen__con:z>=3940' "
                          "(COND 支持 x/y/z 与 >= <= == > <; 可重复; 用于接触/绑定界面)")
+    ap.add_argument('--allow-unresolved-constraints', action='store_true',
+                    help='约束 (*MPC 等) 无法解析时仅警告 '
+                         '(默认: 硬失败退出 — 约束丢失会导致模型连接不完整)')
     args = ap.parse_args()
 
     print(f"[1/3] 解析 {args.inp} ...")
@@ -1580,6 +1591,7 @@ def main():
 
     # *MPC BEAM: 生成主-从刚性连杆 (spider) 单元, 等效刚体运动约束
     mpc_links = []
+    constraints_audit = []       # 约束提取审核记录 → report['constraints']
     if model.mpcs:
         def _resolve_nset(name):
             if name in model.asm_node_nsets:
@@ -1599,17 +1611,23 @@ def main():
         eid_max = max((e for elems in blocks.values() for e, _ in elems),
                       default=0)
         mpc_group = {}           # (轴向, n1) -> block 名
+        mpc_failures = []        # 约束解析失败记录 (默认硬失败)
+        mpc_link_count = {}      # id(mpc) -> 生成连杆数
         for mpc in model.mpcs:
+            cname = mpc.get('constraint') or '(无名约束)'
             if mpc['type'] != 'BEAM':
-                print(f"      WARN: 不支持的 MPC 类型 {mpc['type']}, 跳过",
-                      file=sys.stderr)
+                mpc_failures.append(
+                    f"{cname}: 不支持的 MPC 类型 {mpc['type']} "
+                    f"({mpc['slave']} -> {mpc['master']})")
                 continue
             slaves = _resolve_nset(mpc['slave'])
             masters = _resolve_nset(mpc['master'])
             if not slaves or not masters:
-                print(f"      WARN: MPC {mpc['slave']}/{mpc['master']} "
-                      f"解析为空, 跳过", file=sys.stderr)
+                mpc_failures.append(
+                    f"{cname}: MPC {mpc['slave']}/{mpc['master']} "
+                    f"节点集解析为空 (slave={len(slaves)} master={len(masters)})")
                 continue
+            mpc_link_count[id(mpc)] = 0
             m0 = masters[0]
             for s in slaves:
                 if s == m0:
@@ -1638,7 +1656,9 @@ def main():
                 gm.block_beam[nb] = {'material': 'reactor',
                                      'section': 'RIGID', 'dims': [],
                                      'n1': n1}
-                mpc_links.append({'slave': s, 'master': m0, 'block': nb})
+                mpc_links.append({'slave': s, 'master': m0, 'block': nb,
+                                  'constraint': mpc.get('constraint')})
+                mpc_link_count[id(mpc)] += 1
         if mpc_links:
             for nb in set(gm.elem_block[e] for e in gm.elem_block
                           if gm.elem_block[e].startswith('mpc_beam_links')):
@@ -1646,6 +1666,23 @@ def main():
                 block_meta[nb] = ('__mpc__', 'RIGID')
             print(f"      MPC BEAM: 生成 {len(mpc_links)} 根刚性连杆 "
                   f"({len(mpc_group)} 个方向组)")
+        # 约束完整性: 任何约束丢失都是致命错误 (除非显式允许)
+        for mpc in model.mpcs:
+            cst = {'name': mpc.get('constraint'), 'type': mpc['type'],
+                   'slave': mpc['slave'], 'master': mpc['master'],
+                   'links': mpc_link_count.get(id(mpc), 0)}
+            cst['status'] = 'ok' if cst['links'] > 0 else 'failed'
+            constraints_audit.append(cst)
+        if mpc_failures:
+            for f in mpc_failures:
+                print(f"      \u2717 约束转换失败: {f}", file=sys.stderr)
+            if not args.allow_unresolved_constraints:
+                print("      约束是模型连接完整性必需字段, 拒绝静默丢弃。"
+                      " 如确认可忽略, 加 --allow-unresolved-constraints",
+                      file=sys.stderr)
+                sys.exit(2)
+            print("      WARN: --allow-unresolved-constraints 已启用, "
+                  "以上约束被丢弃", file=sys.stderr)
 
     print(f"[3/3] 写出 Exodus: {args.out}")
     write_exodus(args.out, gm, blocks, block_etype, block_meta, nodesets,
@@ -1681,6 +1718,7 @@ def main():
         'beam_sections': getattr(gm, 'block_beam', {}),
         'mpcs': model.mpcs,
         'mpc_links': mpc_links,
+        'constraints': constraints_audit,
         'releases': {p.name: p.releases
                      for p in model.parts.values() if p.releases},
         'releases_global': _resolve_releases(model, gm),

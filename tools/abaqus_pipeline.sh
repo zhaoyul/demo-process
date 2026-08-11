@@ -8,6 +8,8 @@
 #
 # 流水线阶段 (可用 --from-stage 断点续跑):
 #   1 convert  abaqus2exodus.py: .inp → mesh.e + report.json + rebar_render_map.json
+#   1.5 audit  convert_audit.py: 强制审核 (约束/质量/截面/材料/幅值/边界等
+#              字段提取完整性, FAIL 即中断流水线)
 #   2 solve    hongchuang-opt -i <moose-i> (在 outputs/<name>/ 下运行, ~25min)
 #   3 rebar    build_rebar_result.py: 钢筋宿主插值重构 → rebar_result.e
 #   4 render   可选: --render-script <pvpython 脚本> (逐算例定制, 参考
@@ -79,6 +81,8 @@ if [ "$FROM_STAGE" -le 1 ]; then
       ${CONV_EXTRA[@]+"${CONV_EXTRA[@]}"}
   echo "      → $MESH"
   echo "      → $REPORT (材料/边界/荷载/分析步 — 编写 .i 的依据)"
+  echo "[1.5/4] 转换强制审核 (约束/质量/截面/材料/幅值/边界) ..."
+  "$PY" "$ROOT/tools/convert_audit.py" --inp "$INP" --report "$REPORT"
 fi
 
 # --- 阶段 2: 求解 -------------------------------------------------------
